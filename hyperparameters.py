@@ -1,0 +1,2 @@
+# RNN
+LEARNING_RATE = 0.001

@@ -1,8 +1,8 @@
 from scipy import signal
 import numpy as np
-    """
-    Class that generates samples for a timeseries integration task
-    """
+"""
+Class that generates samples for a timeseries integration task
+"""
 class Integration_Task():
     """
     @params:
@@ -12,18 +12,26 @@ class Integration_Task():
      - scale: scale of the noise used as input
     """
     def __init__(self, discount=1., proto_length=100, loc=0, scale=1.):
-        self.discount=discount
-        self.proto_length=proto_length
+        self.discount = discount
+        self.proto_length = proto_length
+        self.loc = loc
+        self.scale = scale
 
-    def generate_sample(self, length=self.proto_length, discount=self.discount, loc=self.loc, scale=self.scale):
+    def generate_sample(self, length=None, discount=None, loc=None, scale=None):
         """
         Function that samples an input target timesieres pair
         """
-        sample = np.random.normal(loc=loc, scale=scale, size=length)
+        length = (length or self.proto_length)
+        discount = (discount or self.discount)
+        loc = (loc or self.loc)
+        scale = (scale or self.scale)
+
+
+        sample = np.expand_dims(np.random.normal(loc=loc, scale=scale, size=length), axis=-1)
         target = discount_cumsum(sample, discount)
         return sample, target
 
-def discount_cumsum(self, x, discount):
+def discount_cumsum(x, discount):
     """
     magic from rllab for computing discounted cumulative sums of vectors.
     input:
