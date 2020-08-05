@@ -29,19 +29,20 @@ class RNN(nn.Module):
             h: hidden state (num_layers, batch_size, hidden_size)
         """
         if h is None: h=self.h0
+        x = x.float()
         # wrap hidden state in a fresh variable: construct new view
         out, hn = self.rnn(x, h.detach())
 
         # only last outs : (batch_size, input_size)
-        out_last = self.read_out(out[:, -1, :])
+        #out_last = self.read_out(out[:, -1, :])
+        out = self.read_out(out)
 
-        return out_last, hn
+        return out, hn
 
-    def train(self, batch_size, n_iters, seq_length, num_epochs, task='integration'):
+    def train(self, batch_size, n_iters, seq_length, num_epochs, task='integration', print_every=1):
         """
         @params:
-            samples: (how_many, seq_lenght, input_size)
-            targets: (how_many, seq_lenght, out_size)
+
         """
         #num_epochs = n_iters / (len(samples)/batch_size)
         #num_epochs = int(num_epochs)
@@ -55,12 +56,14 @@ class RNN(nn.Module):
         # loss criterion
         loss_function = nn.CrossEntropyLoss()
 
+
         iter = 0
         for epoch in range(num_epochs):
             self.rnn.train()
             samples, targets = task.generate_sample_batch(batch_size)
             samples = torch.from_numpy(samples)
             targets = torch.from_numpy(targets)
+            print(f"target shape: {targets.size()}")
 
             # samples with gradient accumulation abilities
             samples = samples.view(samples.size()).requires_grad_()
@@ -68,9 +71,12 @@ class RNN(nn.Module):
             optimizer.zero_grad()
 
             outputs, _ = self.forward(samples)
+            print(f"output size: {outputs.size()}")
+            print(f"target view: {targets.view(-1, batch_size*seq_length).size()}")
 
             # calculate loss
-            loss = loss_function(outputs, targets)
+            #loss = loss_function(outputs, targets)
+            loss = loss_function(outputs.view(-1), targets.contiguous().view(-1, batch_size*seq_length))
             # gradients wrt parameters
             loss.backward()
             # update parameters
@@ -98,7 +104,7 @@ class RNN(nn.Module):
 
 
 if __name__=="__main__":
-    input_size = 10
+    input_size = 1
     hidden_size = 5
     num_layers = 2
     output_size = 1
