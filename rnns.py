@@ -20,6 +20,7 @@ class RNN(nn.Module):
         self.read_out = nn.Linear(hidden_size, output_size)
 
         self.h0 = torch.zeros(num_layers, batch_size, hidden_size)
+        self.softmax = torch.nn.Softmax(dim=-1)
 
 
     def forward(self, x, h=None):
@@ -29,7 +30,7 @@ class RNN(nn.Module):
             h: hidden state (num_layers, batch_size, hidden_size)
         """
         if h is None: h=self.h0
-        print(type(x))
+        #print(type(x))
         #x = x.astype(float)
         x = x.float()
         # wrap hidden state in a fresh variable: construct new view
@@ -37,11 +38,11 @@ class RNN(nn.Module):
 
         # only last outs : (batch_size, input_size)
         # out_last = self.read_out(out[:, -1, :])
-        out = self.read_out(out)
+        out = self.softmax(self.read_out(out))
 
         return out, hn
 
-    def train(self, batch_size, n_iters, seq_length, num_epochs, task='integration', print_every=1):
+    def train(self, batch_size, seq_length, num_epochs, task='integration', print_every=100):
         """
         @params:
 
@@ -62,24 +63,24 @@ class RNN(nn.Module):
 
         iter = 0
         for epoch in range(num_epochs):
-            self.rnn.train()
+            #self.rnn.train()
             samples, targets = task.generate_sample()
             samples = torch.from_numpy(samples)
             targets = torch.from_numpy(targets)
 
 
             # samples with gradient accumulation abilities
-            samples = samples.view(samples.size()).requires_grad_()
+            samples = samples.view(samples.size())
             # clear gradients
             optimizer.zero_grad()
 
             outputs, _ = self.forward(samples)
 
-            print(f"original target shape: {targets.size()}")
-            print(f"original output shape: {outputs.size()}")
+            #print(f"original target shape: {targets.size()}")
+            #print(f"original output shape: {outputs.size()}")
 
-            print(f"target view: {targets.view(batch_size, -1).size()}")
-            print(f"output view: {outputs.view(batch_size, -1, seq_length).size()}")
+            #print(f"target view: {targets.view(batch_size, -1).size()}")
+            #print(f"output view: {outputs.view(batch_size, -1, seq_length).size()}")
             #print(f"target view: {targets.view(-1, batch_size*seq_length).size()}")
 
             # calculate loss
@@ -91,36 +92,43 @@ class RNN(nn.Module):
             # update parameters
             optimizer.step()
 
-            iter+=1
+            #iter+=1
 
-            if iter % print_every == 0:
-                self.rnn.eval()
+            if epoch % print_every == 0:
+                #self.rnn.eval()
 
                 correct = 0
                 total = 0
                 samples, targets = task.generate_sample()
-                outputs, _ = self.forward(samples)
+                samples = torch.from_numpy(samples)
+                targets = torch.from_numpy(targets)
 
-                _, predicted = torch.max(outputs.data, 1)
 
-                total += targets.size(0)
+                # samples with gradient accumulation abilities
+                samples = samples.view(samples.size()).requires_grad_()
 
-                correct += (predicted == targets).sum()
+                _, predicted = torch.max(outputs.data, 2)
+                print(predicted.size(), "predicted")
 
-            accuracy = 100 * correct / total
-            print(f"Iteration: {iter}. Loss: {loss}. Accuracy: {accuracy}.")
+
+                total = targets.size(0) * targets.size(1)
+                print(f"total: {total}")
+                correct = np.sum(np.squeeze(predicted.numpy())==np.squeeze(targets.numpy()))
+                print(f"correct: {correct}")
+
+                accuracy = 100 * correct / total
+                print(f"Iteration: {iter}. Loss: {loss}. Accuracy: {accuracy}.")
 
 
 
 if __name__=="__main__":
     input_size = 1
-    hidden_size = 5
-    num_layers = 2
+    hidden_size = 128
+    num_layers = 1
     output_size = 2
-    length = 5
-    batch_size = 1
-    n_iters = 10
-    num_epochs = 10
+    length = 100
+    batch_size = 50
+    num_epochs = 10000
     model = RNN(input_size, hidden_size, num_layers, output_size, batch_size)
 
     i = torch.randn(batch_size, length, input_size)
@@ -131,4 +139,4 @@ if __name__=="__main__":
     #print("out:", o)
     #assert ~torch.all(model.h0.eq(h)), "sth wrong with forward step"
 
-    model.train(batch_size, n_iters, length, num_epochs, 'integration')
+    model.train(batch_size, length, num_epochs, 'integration')
