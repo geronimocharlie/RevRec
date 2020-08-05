@@ -31,6 +31,21 @@ class Integration_Task():
         target = discount_cumsum(sample, discount)
         return sample, target
 
+    def generate_sample_batch(self, batch_size=1, length=None, discount=None, loc=None, scale=None):
+        """
+        @out:
+            samples: (batch_size, seq_lenght, input_size)
+            targets: (batch_size, seq_lenght, out_size)
+        """
+        samples = []
+        targets = []
+        for _ in range(batch_size):
+            s, t = self.generate_sample(length, discount, loc, scale)
+            samples.append(s)
+            targets.append(t)
+        return np.array(samples), np.array(targets)
+
+
 def discount_cumsum(x, discount):
     """
     magic from rllab for computing discounted cumulative sums of vectors.
