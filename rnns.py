@@ -67,6 +67,13 @@ class GRU(nn.Module):
         self.name = 'GRU'
         self.folder_name = ""
 
+        #hidden0 = torch.empty(num_layers, batch_size, hidden_size)
+        #hidden0 = nn.init.normal_(hidden0, mean=0, std=np.sqrt(1/hidden_size))
+        #weight = next(self.parameters()).data
+        #self.init_hidden = weight.new(self.num_layers, self.batch_size, self.hidden_size).normal_(mean=0, std=np.sqrt(1/hidden_size)).requires_grad_()
+        #self.init_hidden = nn.Parameter(hidden0, requires_grad=True)
+        self.init_hidden = self.init_hidden_state()
+
     def init_hidden_state(self):
         weight = next(self.parameters()).data
         hidden = weight.new(self.num_layers, self.batch_size, self.hidden_size).zero_()
@@ -75,7 +82,9 @@ class GRU(nn.Module):
 
     def forward(self, x, h=None, method=None):
 
-
+        #h = (h or self.init_hidden)
+        if h==None:
+            h = self.init_hidden
         out, hn = self.gru(x, h)
 
         if method == 'last':
@@ -104,7 +113,7 @@ class LSTM(nn.Module):
 
     def init_hidden_state(self):
         weight = next(self.parameters()).data
-        hidden = weight.new(self.num_layers, self.batch_size, self.hidden_size).zero_()
+        hidden = Variable(weight.new(self.num_layers, self.batch_size, self.hidden_size).zero_())
         return (hidden, hidden)
 
     def forward(self, x, h=None, method=None):
@@ -126,6 +135,9 @@ def train_fn(batch_size, seq_length, num_epochs, model, task_name='integration',
         losses = []
         accuracies = []
 
+        #h0 = model.init_hidden.clone()
+        #print(h0, "h before")
+
 
         if task_name=='integration':
             task = Integration_Task(length=seq_length, batch_size=batch_size)
@@ -143,7 +155,7 @@ def train_fn(batch_size, seq_length, num_epochs, model, task_name='integration',
         for epoch in range(num_epochs):
             epoch += 1
             model.train()
-            h = model.init_hidden_state()
+            #h = model.init_hidden_state()
 
             avg_loss = 0
 
@@ -175,7 +187,7 @@ def train_fn(batch_size, seq_length, num_epochs, model, task_name='integration',
             losses.append(avg_loss/iter)
 
             print("-------")
-            print(f"Epoch {epoch}/{num_epochs} done, total loss: {np.mean(losses)}")
+            print(f"Epoch {epoch}/{num_epochs} done, average loss: {np.mean(losses)}")
 
             accuracies.append(evaluate(model, task))
 
@@ -183,16 +195,34 @@ def train_fn(batch_size, seq_length, num_epochs, model, task_name='integration',
 
 
         print("---------Finished Training--------")
-        evaluate(model, task, last=True, avg_losses=losses, avg_accuracies=accuracies)
-        save(path, model, task_name, epoch)
+        evaluate(model, task)
+
+        #htrained = model.init_hidden
+        #print(htrained, "h after")
+
+        #print(h0.detach().numpy().all() == htrained.detach().numpy().all())
+
+        save(path, model, task_name, epoch, accuracies, losses)
 
 
-def save(supfolder, model, task_name, epoch):
+def save(supfolder, model, task_name, epoch, accuracies, losses):
 
     time_stamp = datetime.now().strftime("%d-%m-%Y_%I-%M-%S_%p")
     model.folder_name = f"{supfolder}/{model.name}_{task_name}_{time_stamp}"
     os.mkdir(model.folder_name)
-    torch.save(model, f"{model.folder_name}__epochs_{epoch}")
+    os.chdir(model.folder_name)
+    torch.save(model, f"trained_weights_{model.name}_{task_name}_epochs_{epoch}")
+
+    fig, axes = plt.subplots(2,1, sharex=True)
+    axes[0].plot(accuracies)
+    axes[0].set_xlabel("Epochs")
+    axes[1].set_ylabel("Mean Accuracies for Tesset")
+    axes[1].plot(losses)
+    axes[1].set_xlabel("Epochs")
+    axes[1].set_ylabel("Mean Losses")
+    plt.suptitle(f"Training Progres: {model.name} on {task_name}")
+    plt.show()
+    plt.savefig(f"trainnig_progress_{model.name}_epochs_{epoch}")
 
 def evaluate(model, task, last=False, avg_losses=None, avg_accuracies=None):
     model.eval()
@@ -206,9 +236,9 @@ def evaluate(model, task, last=False, avg_losses=None, avg_accuracies=None):
         #input = torch.from_numpy(input)
         #target = torch.from_numpy(target)
 
-        h = model.init_hidden_state()
+        #h = model.init_hidden_state()
 
-        output, h = model.forward(input.float(), h)
+        output, h = model.forward(input.float())
 
         output = output.detach().numpy()
 
@@ -246,7 +276,7 @@ if __name__=="__main__":
     output_size = 1
     length = 10
     batch_size = 5
-    num_epochs = 2
+    num_epochs = 5
     model = GRU(input_size, hidden_size, num_layers, output_size, batch_size)
     #model = LSTM(input_size, hidden_size, num_layers, output_size, batch_size)
     train_fn(batch_size, length, num_epochs, model, 'integration')
