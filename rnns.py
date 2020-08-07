@@ -19,39 +19,58 @@ class RNN(nn.Module):
             activation [str]: activation function
 
         '''
+
+        # RNN layer
+        self.rnn = nn.RNN(input_size, hidden_size, num_layers,
+                          nonlinearity=activation, batch_first=True)
+        # Fully connected layer
+        self.read_out = nn.Linear(hidden_size, output_size)
+
+        # This generates the first hidden state of zeros that will be used in the forward pass
+        self.h0 = torch.zeros(num_layers, batch_size, hidden_size)
+
         self.hidden_size = hidden_size
         self.batch_size = batch_size
         self.input_size = input_size
         self.num_layers = num_layers
         self.output_size = output_size
 
-        self.rnn = nn.RNN(input_size, hidden_size, num_layers, nonlinearity=activation, batch_first=True)
+        self.rnn = nn.RNN(input_size, hidden_size, num_layers,
+                          nonlinearity=activation, batch_first=True)
         self.read_out = nn.Linear(hidden_size, output_size)
         self.name = 'RNN'
-        model.folder_name = ""
-
+        self.folder_name = ""
 
     def init_hidden_state(self):
 
         weight = next(self.parameters()).data
-        hidden = weight.new(self.num_layers, self.batch_size, self.hidden_size).zero_()
+        hidden = weight.new(self.num_layers, self.batch_size,
+                            self.hidden_size).zero_()
         return hidden
 
+        # dim=-1??
+        self.softmax = nn.Softmax(dim=-1)
 
     def forward(self, x, h=None):
         """
         @params:
-            x: (batch_size, lenght, input_size)
+            x: (batch_size, length, input_size)
             h: hidden state (num_layers, batch_size, hidden_size)
         """
 
-        out, hn = self.rnn(x, h.detach())
-        out = torch.sigmoid(self.read_out(out))
+        if h is None:
+            h = self.h0
+        # print(type(x))
+        #x = x.astype(float)
+        x = x.float()
+        # wrap hidden state in a fresh variable: construct new view
+        # is .detach() used to avoid backpropagating all the way to the start?
+        hidden_state, final_state = self.rnn(x, h.detach())
+        out = torch.sigmoid(self.read_out(hidden_state))
 
-        return out, hn
+        return out, hidden_state
 
 class GRU(nn.Module):
-
 
     def __init__(self, input_size, hidden_size, num_layers, output_size, batch_size):
         super(GRU, self).__init__()
@@ -61,7 +80,8 @@ class GRU(nn.Module):
         self.num_layers = num_layers
         self.output_size = output_size
 
-        self.gru = nn.GRU(input_size, hidden_size, num_layers, batch_first = True)
+        self.gru = nn.GRU(input_size, hidden_size,
+                          num_layers, batch_first=True)
         self.read_out = nn.Linear(hidden_size, output_size)
         self.relu = nn.ReLU()
         self.name = 'GRU'
@@ -76,9 +96,9 @@ class GRU(nn.Module):
 
     def init_hidden_state(self):
         weight = next(self.parameters()).data
-        hidden = weight.new(self.num_layers, self.batch_size, self.hidden_size).zero_()
+        hidden = weight.new(self.num_layers, self.batch_size,
+                            self.hidden_size).zero_()
         return hidden
-
 
     def forward(self, x, h=None, method=None):
 
@@ -88,14 +108,13 @@ class GRU(nn.Module):
         out, hn = self.gru(x, h)
 
         if method == 'last':
-            out = out[:,-1,:]
+            out = out[:, -1, :]
         out = torch.sigmoid(self.read_out(self.relu(out)))
 
         return out, hn
 
 
 class LSTM(nn.Module):
-
 
     def __init__(self, input_size, hidden_size, num_layers, output_size, batch_size):
         super(LSTM, self).__init__()
@@ -105,7 +124,8 @@ class LSTM(nn.Module):
         self.num_layers = num_layers
         self.output_size = output_size
 
-        self.gru = nn.LSTM(input_size, hidden_size, num_layers, batch_first = True)
+        self.gru = nn.LSTM(input_size, hidden_size,
+                           num_layers, batch_first=True)
         self.read_out = nn.Linear(hidden_size, output_size)
 
         self.name = 'LSTM'
@@ -113,14 +133,15 @@ class LSTM(nn.Module):
 
     def init_hidden_state(self):
         weight = next(self.parameters()).data
-        hidden = Variable(weight.new(self.num_layers, self.batch_size, self.hidden_size).zero_())
+        hidden = weight.new(self.num_layers, self.batch_size,
+                            self.hidden_size).zero_()
         return (hidden, hidden)
 
     def forward(self, x, h=None, method=None):
 
         out, hn = self.gru(x, h)
         if method == 'last':
-            out = out[:,-1,:]
+            out = out[:, -1, :]
         out = torch.sigmoid(self.read_out(out))
 
         return out, hn
@@ -128,81 +149,66 @@ class LSTM(nn.Module):
 
 
 def train_fn(batch_size, seq_length, num_epochs, model, task_name='integration', print_every=100, path = 'models/'):
-        """
-        @params:
+    """
+    @params:
 
-        """
-        losses = []
-        accuracies = []
+    """
+    losses = []
+    accuracies = []
 
-        #h0 = model.init_hidden.clone()
-        #print(h0, "h before")
-
-
-        if task_name=='integration':
-            task = Integration_Task(length=seq_length, batch_size=batch_size)
-            task.generate_data_loader()
+    if task_name == 'integration':
+        task = Integration_Task(length=seq_length, batch_size=batch_size)
 
 
+    # initialize optimizer
+    optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
-        # initialize optimizer
-        optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
-        # loss criterion
-        loss_function = nn.BCELoss()
+    # loss criterion
+    loss_function = nn.BCELoss()
 
-        evaluate(model, task)
+    iter = 0
 
-        for epoch in range(num_epochs):
-            epoch += 1
-            model.train()
+
+    for epoch in range(num_epochs):
+        epoch += 1
+        model.train()
             #h = model.init_hidden_state()
 
-            avg_loss = 0
+        avg_loss = 0
 
-            for iter , (samples, targets) in enumerate(task.train_loader):
-                #samples, targets = task.generate_sample()
-                #samples = torch.from_numpy(samples).float().requires_grad_()
-                #targets = torch.from_numpy(targets)
+        for iter, (samples, targets) in enumerate(task.train_loader):
+            #samples, targets = task.generate_sample()
+            #samples = torch.from_numpy(samples).float().requires_grad_()
+            #targets = torch.from_numpy(targets)
 
+            iter += 1
+            h = model.init_hidden_state()
+            outputs, _ = model.forward(samples.float(), h)
 
-                iter +=1
-                h = model.init_hidden_state()
-                outputs, _ = model.forward(samples.float(), h)
+            loss = loss_function(outputs.float(), targets.float())
 
-                loss = loss_function(outputs.float(), targets.float())
+            avg_loss += loss.item()
 
-                avg_loss += loss.item()
+            # gradients wrt parameters
+            optimizer.zero_grad()
+            loss.backward()
+            # update parameters
+            optimizer.step()
 
+            if iter % print_every == 0:
+                print(f"Epoch {epoch}/{num_epochs}...Iter: {iter}/{len(task.train_loader)}....Average Loss for Epoch: {avg_loss/iter}")
 
-                # gradients wrt parameters
-                optimizer.zero_grad()
-                loss.backward()
-                # update parameters
-                optimizer.step()
+        losses.append(avg_loss / iter)
+        accuracies.append(evaluate(model, task))
 
+    print("---------Finished Training--------")
+    evaluate(model, task)
 
-                if iter % print_every == 0:
-                    print(f"Epoch {epoch}/{num_epochs}...Iter: {iter}/{len(task.train_loader)}....Average Loss for Epoch: {avg_loss/iter}")
+    #htrained = model.init_hidden
+    #print(htrained, "h after")
 
-            losses.append(avg_loss/iter)
-
-            print("-------")
-            print(f"Epoch {epoch}/{num_epochs} done, average loss: {np.mean(losses)}")
-
-            accuracies.append(evaluate(model, task))
-
-
-
-
-        print("---------Finished Training--------")
-        evaluate(model, task)
-
-        #htrained = model.init_hidden
-        #print(htrained, "h after")
-
-        #print(h0.detach().numpy().all() == htrained.detach().numpy().all())
-
-        save(path, model, task_name, epoch, accuracies, losses)
+    #print(h0.detach().numpy().all() == htrained.detach().numpy().all())
+    save(path, model, task_name, epoch, accuracies, losses)
 
 
 def save(supfolder, model, task_name, epoch, accuracies, losses):
@@ -230,7 +236,7 @@ def evaluate(model, task, last=False, avg_losses=None, avg_accuracies=None):
     targets = []
     accuracies = []
 
-    for i ,(input, target) in enumerate(task.train_loader):
+    for i, (input, target) in enumerate(task.train_loader):
 
         #input, target = task.generate_sample()
         #input = torch.from_numpy(input)
@@ -242,23 +248,15 @@ def evaluate(model, task, last=False, avg_losses=None, avg_accuracies=None):
 
         output = output.detach().numpy()
 
-
         total = target.size(0) * target.size(1)
         predicted = np.round(output)
         predicted = np.squeeze(predicted)
         target = np.squeeze(target.detach().numpy())
 
-
         predictions.append(predicted)
-        correct = np.sum(predicted==target)
+        correct = np.sum(predicted == target)
         accuracy = 100 * (correct / total)
         accuracies.append(accuracy)
-
-    if last & (avg_losses!=None) & (avg_accuracies!=None):
-        fig, axes = plt.subplots(2,1)
-        axes[0].plot(avg_accuracies)
-        axes[1].plot(avg_losses)
-        plt.show()
 
     print(f"Mean Accuracy: {np.mean(accuracies)}")
 
@@ -268,17 +266,15 @@ def load_last(folder="models/"):
     pass
 
 
-
-if __name__=="__main__":
+if __name__ == "__main__":
     input_size = 1
-    hidden_size = 256
+    hidden_size = 128
     num_layers = 1
-    output_size = 1
-    length = 10
-    batch_size = 5
-    num_epochs = 5
+    output_size =  1  # the google github: number of outputs is 1
+    length = 10  # what is sequence length in the integration task?
+    batch_size = 10
+    num_epochs = 2
+
     model = GRU(input_size, hidden_size, num_layers, output_size, batch_size)
     #model = LSTM(input_size, hidden_size, num_layers, output_size, batch_size)
     train_fn(batch_size, length, num_epochs, model, 'integration')
-
-    model = torch.load
