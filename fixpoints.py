@@ -3,7 +3,9 @@ import numpy as np
 from datetime import datetime
 from rnns import *
 from integration_task import Integration_Task
-CANDIDATES_BATCHSIZE = 50
+import pickle
+
+CANDIDATES_BATCHSIZE = 100
 CANDIDATES_ITERS = 50
 #amount of of sampled possible pre-candidates, num_points must be smaller than this.
 CANDIDATES_SAMPLED=CANDIDATES_BATCHSIZE*CANDIDATES_ITERS
@@ -11,7 +13,6 @@ P_NORM=2
 LEARNING_RATE = 0.001
 OPTIMIZATION_ITERS = 10000
 PRINT_EVERY = 1000
-import pickle
 task_class = Integration_Task
 
 def calculate_fixpoints(model_path, model_name, num_points):
@@ -63,5 +64,5 @@ if __name__ == '__main__':
     MODEL_PATH = '/home/falconinae/Documents/University/NDyn/RevRec/models/GRU_integration_07-08-2020_05-46-00_PM/'
     MODEL_NAME = 'trained_weights_GRU_integration_epochs_5'
 
-    num_points= 800
+    num_points= 20000
     calculate_fixpoints(MODEL_PATH, MODEL_NAME, num_points)
