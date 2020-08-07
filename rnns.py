@@ -4,6 +4,8 @@ import numpy as np
 from hyperparameters import *
 from integration_task import Integration_Task
 import matplotlib.pyplot as plt
+from datetime import datetime
+import os
 
 class RNN(nn.Module):
 
@@ -25,6 +27,8 @@ class RNN(nn.Module):
 
         self.rnn = nn.RNN(input_size, hidden_size, num_layers, nonlinearity=activation, batch_first=True)
         self.read_out = nn.Linear(hidden_size, output_size)
+        self.name = 'RNN'
+        model.folder_name = ""
 
 
     def init_hidden_state(self):
@@ -60,6 +64,8 @@ class GRU(nn.Module):
         self.gru = nn.GRU(input_size, hidden_size, num_layers, batch_first = True)
         self.read_out = nn.Linear(hidden_size, output_size)
         self.relu = nn.ReLU()
+        self.name = 'GRU'
+        self.folder_name = ""
 
     def init_hidden_state(self):
         weight = next(self.parameters()).data
@@ -93,6 +99,9 @@ class LSTM(nn.Module):
         self.gru = nn.LSTM(input_size, hidden_size, num_layers, batch_first = True)
         self.read_out = nn.Linear(hidden_size, output_size)
 
+        self.name = 'LSTM'
+        self.folder_name = ""
+
     def init_hidden_state(self):
         weight = next(self.parameters()).data
         hidden = weight.new(self.num_layers, self.batch_size, self.hidden_size).zero_()
@@ -109,7 +118,7 @@ class LSTM(nn.Module):
 
 
 
-def train_fn(batch_size, seq_length, num_epochs, model, task='integration', print_every=100):
+def train_fn(batch_size, seq_length, num_epochs, model, task_name='integration', print_every=100, path = 'models/'):
         """
         @params:
 
@@ -118,7 +127,7 @@ def train_fn(batch_size, seq_length, num_epochs, model, task='integration', prin
         accuracies = []
 
 
-        if task=='integration':
+        if task_name=='integration':
             task = Integration_Task(length=seq_length, batch_size=batch_size)
             task.generate_data_loader()
 
@@ -132,6 +141,7 @@ def train_fn(batch_size, seq_length, num_epochs, model, task='integration', prin
         evaluate(model, task)
 
         for epoch in range(num_epochs):
+            epoch += 1
             model.train()
             h = model.init_hidden_state()
 
@@ -165,7 +175,7 @@ def train_fn(batch_size, seq_length, num_epochs, model, task='integration', prin
             losses.append(avg_loss/iter)
 
             print("-------")
-            print(f"Epoch {epoch}/{num_epochs} done, total loss: {avg_loss/len(task.train_loader)}")
+            print(f"Epoch {epoch}/{num_epochs} done, total loss: {np.mean(losses)}")
 
             accuracies.append(evaluate(model, task))
 
@@ -173,13 +183,18 @@ def train_fn(batch_size, seq_length, num_epochs, model, task='integration', prin
 
 
         print("---------Finished Training--------")
-        evaluate(model, task, last=True, losses=losses)
-
-        return model
-
+        evaluate(model, task, last=True, avg_losses=losses, avg_accuracies=accuracies)
+        save(path, model, task_name, epoch)
 
 
-def evaluate(model, task, last=False, losses=None):
+def save(supfolder, model, task_name, epoch):
+
+    time_stamp = datetime.now().strftime("%d-%m-%Y_%I-%M-%S_%p")
+    model.folder_name = f"{supfolder}/{model.name}_{task_name}_{time_stamp}"
+    os.mkdir(model.folder_name)
+    torch.save(model, f"{model.folder_name}__epochs_{epoch}")
+
+def evaluate(model, task, last=False, avg_losses=None, avg_accuracies=None):
     model.eval()
     predictions = []
     targets = []
@@ -209,15 +224,18 @@ def evaluate(model, task, last=False, losses=None):
         accuracy = 100 * (correct / total)
         accuracies.append(accuracy)
 
-    if last & (losses!=None):
+    if last & (avg_losses!=None) & (avg_accuracies!=None):
         fig, axes = plt.subplots(2,1)
-        axes[0].plot(accuracies)
-        axes[1].plot(losses)
+        axes[0].plot(avg_accuracies)
+        axes[1].plot(avg_losses)
         plt.show()
 
     print(f"Mean Accuracy: {np.mean(accuracies)}")
 
-    return accuracies
+    return np.mean(accuracies)
+
+def load_last(folder="models/"):
+    pass
 
 
 
@@ -226,9 +244,11 @@ if __name__=="__main__":
     hidden_size = 256
     num_layers = 1
     output_size = 1
-    length = 100
+    length = 10
     batch_size = 5
-    num_epochs = 200
+    num_epochs = 2
     model = GRU(input_size, hidden_size, num_layers, output_size, batch_size)
     #model = LSTM(input_size, hidden_size, num_layers, output_size, batch_size)
     train_fn(batch_size, length, num_epochs, model, 'integration')
+
+    model = torch.load
