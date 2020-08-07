@@ -21,6 +21,9 @@ class Integration_Task():
         self.discount = discount
         self.loc = loc
         self.scale = scale
+        self.train_loader = None #set by generate_data_loader
+        self.test_loader = None  #set by generate_data_loader
+        self.generate_data_loader()
 
     def generate_sample(self, length=None, size=None, batch_size=None, discount=None, loc=None, scale=None):
         """

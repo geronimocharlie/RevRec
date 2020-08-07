@@ -61,10 +61,10 @@ class RNN(nn.Module):
         x = x.float()
         # wrap hidden state in a fresh variable: construct new view
         # is .detach() used to avoid backpropagating all the way to the start?
-        out, hn = self.rnn(x, h.detach())
-        out = torch.sigmoid(self.read_out(out))
+        hidden_state, final_state = self.rnn(x, h.detach())
+        out = torch.sigmoid(self.read_out(hidden_state))
 
-        return out, hn
+        return out, hidden_state
 
 class GRU(nn.Module):
 
