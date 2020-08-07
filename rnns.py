@@ -216,13 +216,13 @@ def save(supfolder, model, task_name, epoch, accuracies, losses):
     fig, axes = plt.subplots(2,1, sharex=True)
     axes[0].plot(accuracies)
     axes[0].set_xlabel("Epochs")
-    axes[1].set_ylabel("Mean Accuracies for Tesset")
+    axes[0].set_ylabel("Mean Accuracies for Testset")
     axes[1].plot(losses)
     axes[1].set_xlabel("Epochs")
     axes[1].set_ylabel("Mean Losses")
     plt.suptitle(f"Training Progres: {model.name} on {task_name}")
     plt.show()
-    plt.savefig(f"trainnig_progress_{model.name}_epochs_{epoch}")
+    plt.savefig(f"trainnig_progress_{model.name}_epochs_{epoch}.png")
 
 def evaluate(model, task, last=False, avg_losses=None, avg_accuracies=None):
     model.eval()
@@ -265,10 +265,10 @@ if __name__ == "__main__":
     hidden_size = 128
     num_layers = 1
     output_size =  1  # the google github: number of outputs is 1
-    length = 10  # what is sequence length in the integration task?
+    length = 100  # what is sequence length in the integration task?
     batch_size = 10
-    num_epochs = 2
+    num_epochs = 5
 
-    model = LSTM(input_size, hidden_size, num_layers, output_size, batch_size)
+    model = GRU(input_size, hidden_size, num_layers, output_size, batch_size)
     #model = LSTM(input_size, hidden_size, num_layers, output_size, batch_size)
     train_fn(batch_size, length, num_epochs, model, 'integration')

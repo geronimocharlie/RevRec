@@ -24,6 +24,7 @@ class Integration_Task():
         self.train_loader = None #set by generate_data_loader
         self.test_loader = None  #set by generate_data_loader
         self.generate_data_loader()
+        self.default_obs_shape = (batch_size, length, size)
 
     def generate_sample(self, length=None, size=None, batch_size=None, discount=None, loc=None, scale=None):
         """
@@ -82,6 +83,7 @@ class Integration_Task():
 
         test_data = TensorDataset(torch.from_numpy(test_x), torch.from_numpy(test_y))
         self.test_loader = DataLoader(test_data, shuffle=False, batch_size=batch_size)
+        
 def discount_cumsum(x, discount):
     """
     magic from rllab for computing discounted cumulative sums of vectors.
