@@ -58,14 +58,7 @@ class RNN(nn.Module):
             h: hidden state (num_layers, batch_size, hidden_size)
         """
 
-        if h is None:
-            h = self.h0
-        # print(type(x))
-        #x = x.astype(float)
-        x = x.float()
-        # wrap hidden state in a fresh variable: construct new view
-        # is .detach() used to avoid backpropagating all the way to the start?
-        hidden_state, final_state = self.rnn(x, h.detach())
+        hidden_state, final_state = self.rnn(x, h)
         out = torch.sigmoid(self.read_out(hidden_state))
 
         return out, hidden_state
@@ -92,7 +85,7 @@ class GRU(nn.Module):
         #weight = next(self.parameters()).data
         #self.init_hidden = weight.new(self.num_layers, self.batch_size, self.hidden_size).normal_(mean=0, std=np.sqrt(1/hidden_size)).requires_grad_()
         #self.init_hidden = nn.Parameter(hidden0, requires_grad=True)
-        self.init_hidden = self.init_hidden_state()
+
 
     def init_hidden_state(self):
         weight = next(self.parameters()).data
@@ -103,15 +96,15 @@ class GRU(nn.Module):
     def forward(self, x, h=None, method=None):
 
         #h = (h or self.init_hidden)
-        if h==None:
-            h = self.init_hidden
-        out, hn = self.gru(x, h)
+        #if h==None:
+            #h = self.init_hidden
+        hidden_state, final_state = self.gru(x, h)
 
         if method == 'last':
             out = out[:, -1, :]
-        out = torch.sigmoid(self.read_out(self.relu(out)))
+        out = torch.sigmoid(self.read_out(self.relu(hidden_state)))
 
-        return out, hn
+        return out, hidden_state
 
 
 class LSTM(nn.Module):
@@ -130,6 +123,7 @@ class LSTM(nn.Module):
 
         self.name = 'LSTM'
         self.folder_name = ""
+        self.init_hidden = self.init_hidden_state()
 
     def init_hidden_state(self):
         weight = next(self.parameters()).data
@@ -139,12 +133,12 @@ class LSTM(nn.Module):
 
     def forward(self, x, h=None, method=None):
 
-        out, hn = self.gru(x, h)
+        hidden_state, final_state = self.gru(x, h)
         if method == 'last':
             out = out[:, -1, :]
-        out = torch.sigmoid(self.read_out(out))
+        out = torch.sigmoid(self.read_out(hidden_state))
 
-        return out, hn
+        return out, final_state
 
 
 
@@ -275,6 +269,6 @@ if __name__ == "__main__":
     batch_size = 10
     num_epochs = 2
 
-    model = GRU(input_size, hidden_size, num_layers, output_size, batch_size)
+    model = LSTM(input_size, hidden_size, num_layers, output_size, batch_size)
     #model = LSTM(input_size, hidden_size, num_layers, output_size, batch_size)
     train_fn(batch_size, length, num_epochs, model, 'integration')
