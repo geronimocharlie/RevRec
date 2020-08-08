@@ -142,7 +142,7 @@ class LSTM(nn.Module):
 
 
 
-def train_fn(batch_size, seq_length, num_epochs, model, task_name='integration', print_every=100, path = 'models/'):
+def train_fn(batch_size, seq_length, num_epochs, model, task_name='integration', print_every=100, path = 'models/', disco=1.):
     """
     @params:
 
@@ -151,7 +151,7 @@ def train_fn(batch_size, seq_length, num_epochs, model, task_name='integration',
     accuracies = []
 
     if task_name == 'integration':
-        task = Integration_Task(length=seq_length, batch_size=batch_size)
+        task = Integration_Task(length=seq_length, batch_size=batch_size, discount=disco)
 
 
     # initialize optimizer
@@ -271,4 +271,4 @@ if __name__ == "__main__":
 
     model = GRU(input_size, hidden_size, num_layers, output_size, batch_size)
     #model = LSTM(input_size, hidden_size, num_layers, output_size, batch_size)
-    train_fn(batch_size, length, num_epochs, model, 'integration')
+    train_fn(batch_size, length, num_epochs, model, 'integration', disco=.9)

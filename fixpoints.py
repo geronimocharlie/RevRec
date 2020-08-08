@@ -11,7 +11,7 @@ CANDIDATES_ITERS = 50
 CANDIDATES_SAMPLED=CANDIDATES_BATCHSIZE*CANDIDATES_ITERS
 P_NORM=2
 LEARNING_RATE = 0.001
-OPTIMIZATION_ITERS = 10000
+OPTIMIZATION_ITERS = 5000
 PRINT_EVERY = 1000
 task_class = Integration_Task
 
@@ -42,14 +42,14 @@ def calculate_fixpoints(model_path, model_name, num_points):
         optimizer=torch.optim.Adam([fixpoint_candidates], LEARNING_RATE)
         optimizer.zero_grad()
         for i in range(OPTIMIZATION_ITERS):
-            _, hidden_states = model.forward(torch.zeros((fixpoint_candidates.size()[0],1,1)))
+            _, hidden_states = model.forward(torch.add(torch.zeros((fixpoint_candidates.size()[0],1,1)),-1))
             loss = loss_f(fixpoint_candidates, torch.squeeze(hidden_states))
             loss.backward()
             optimizer.step()
             optimizer.zero_grad()
             if i%PRINT_EVERY == 0:
                 print(loss)
-        with open(model_path +  'fixpoints_' + datetime.now().strftime("%d-%m-%Y_%I-%M-%S_%p"), 'wb') as file:
+        with open(model_path +  'fixpoints_-1_in_' + datetime.now().strftime("%d-%m-%Y_%I-%M-%S_%p"), 'wb') as file:
             pickle.dump(fixpoint_candidates.detach().numpy(), file)
 
 

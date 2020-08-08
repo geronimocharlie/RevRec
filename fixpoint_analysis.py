@@ -1,3 +1,4 @@
+
 import numpy as np
 import torch
 from sklearn.decomposition import PCA
@@ -20,4 +21,7 @@ print('explained_variance: ', pca.explained_variance_ratio_)
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 ax.scatter(transformed_fixpoints[:,0], transformed_fixpoints[:,1], transformed_fixpoints[:,2], alpha=.2)
+ax.set_xlabel('X')
+ax.set_ylabel('Y')
+ax.set_zlabel('Z')
 plt.show()
