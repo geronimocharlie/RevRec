@@ -11,8 +11,8 @@ CANDIDATES_ITERS = 50
 CANDIDATES_SAMPLED=CANDIDATES_BATCHSIZE*CANDIDATES_ITERS
 P_NORM=2
 LEARNING_RATE = 0.001
-OPTIMIZATION_ITERS = 10000
-PRINT_EVERY = 1000
+OPTIMIZATION_ITERS = 5000
+PRINT_EVERY = 100
 task_class = Integration_Task
 
 def calculate_fixpoints(model_path, model_name, num_points):
@@ -49,8 +49,22 @@ def calculate_fixpoints(model_path, model_name, num_points):
             optimizer.zero_grad()
             if i%PRINT_EVERY == 0:
                 print(loss)
+                #print(loss.size())
+
+        # get loss (speed) fon each found fix point
+        loss_f = torch.nn.MSELoss(reduction='none')
+        _, hidden_states = model.forward(torch.zeros((fixpoint_candidates.size()[0],1,1)))
+        fp_losses = loss_f(fixpoint_candidates, torch.squeeze(hidden_states))
+        print(fp_losses.size())
+        fp_losses = fp_losses.detach().numpy()
+        fp_losses = np.mean(fp_losses, axis=-1)
+        print(fp_losses.shape)
+
+
+
         with open(model_path +  'fixpoints_' + datetime.now().strftime("%d-%m-%Y_%I-%M-%S_%p"), 'wb') as file:
-            pickle.dump(fixpoint_candidates.detach().numpy(), file)
+            pickle.dump((fixpoint_candidates.detach().numpy(), fp_losses), file)
+
 
 
 
@@ -61,8 +75,8 @@ def calculate_fixpoints(model_path, model_name, num_points):
 
 
 if __name__ == '__main__':
-    MODEL_PATH = '/home/falconinae/Documents/University/NDyn/RevRec/models/GRU_integration_07-08-2020_05-46-00_PM/'
-    MODEL_NAME = 'trained_weights_GRU_integration_epochs_5'
+    MODEL_PATH = 'models/GRU_integration_07-08-2020_12-36-02_PM/'
+    MODEL_NAME = 'trained_weights_GRU_integration_epochs_2'
 
-    num_points= 20000
+    num_points= 10000
     calculate_fixpoints(MODEL_PATH, MODEL_NAME, num_points)
