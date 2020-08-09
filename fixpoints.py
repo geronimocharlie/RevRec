@@ -29,6 +29,12 @@ def calculate_fixpoints(model_path, model_name, num_points):
             if _i >CANDIDATES_ITERS:
                 break
             _i = _i+1
+
+        # save runs for trajectory plotting 
+        with open(model_path + 'exemplary_runs_' + datetime.now().strftime("%d-%m-%Y_%I-%M-%S_%p"), 'wb') as file:
+            pickle.dump(candidates.detach().numpy(), file)
+
+
         candidates = torch.reshape(candidates, (-1, model.hidden_size))
         candidates = candidates[np.random.choice(CANDIDATES_SAMPLED*task.length, size=num_points, replace=False)]
         print(candidates.size())
