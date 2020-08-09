@@ -35,6 +35,7 @@ def calculate_fixpoints(model_path, model_name, num_points):
         return candidates.detach().numpy()
 
     def train_fixpoints(model_path, model_name, fixpoint_candidates):
+        stop_tol = 0.00001
         fixpoint_candidates = torch.from_numpy(fixpoint_candidates)
         fixpoint_candidates.requires_grad_()
         model = torch.load(model_path+model_name)
@@ -49,6 +50,8 @@ def calculate_fixpoints(model_path, model_name, num_points):
             optimizer.zero_grad()
             if i%PRINT_EVERY == 0:
                 print(loss)
+            if loss < stop_tol:
+                break
                 #print(loss.size())
 
         # get loss (speed) fon each found fix point
@@ -75,8 +78,8 @@ def calculate_fixpoints(model_path, model_name, num_points):
 
 
 if __name__ == '__main__':
-    MODEL_PATH = 'models/GRU_integration_07-08-2020_12-36-02_PM/'
-    MODEL_NAME = 'trained_weights_GRU_integration_epochs_2'
+    MODEL_PATH = 'models/GRU_integration_09-08-2020_03-13-31_PM/'
+    MODEL_NAME = 'trained_weights_GRU_integration_epochs_5'
 
-    num_points= 10000
+    num_points= 5000
     calculate_fixpoints(MODEL_PATH, MODEL_NAME, num_points)
