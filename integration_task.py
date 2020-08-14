@@ -1,19 +1,30 @@
+#! /usr/bin/python3
+
 from scipy import signal
 import numpy as np
 import torch
 from torch.utils.data import TensorDataset, DataLoader
+import matplotlib.pyplot as plt
+import os
+
+cwd = os.getcwd()
 
 """
 Class that generates samples for a timeseries integration task
 """
+
+
 class Integration_Task():
     """
     @params:
+     - length: sequence_length/time_steps
+     - size: input_size (default=1)
      - discount: discount factor for exponentially discounted sum
-     - proto_length: default length of a single sample, if no other length is specified in the sampling statement
+     - proto_length: default length of a single sample, if no other length is specified in the sampling statement ??
      - loc: mean of the noise used as input
-     - scale: scale of the noise used as input
+     - scale: scale/SD of the noise used as input
     """
+
     def __init__(self, discount=1., length=100, size=1, batch_size=1, loc=0, scale=1.):
         self.length = length
         self.size = size
@@ -21,8 +32,8 @@ class Integration_Task():
         self.discount = discount
         self.loc = loc
         self.scale = scale
-        self.train_loader = None #set by generate_data_loader
-        self.test_loader = None  #set by generate_data_loader
+        self.train_loader = None  # set by generate_data_loader
+        self.test_loader = None  # set by generate_data_loader
         self.generate_data_loader()
         self.default_obs_shape = (batch_size, length, size)
 
@@ -41,11 +52,10 @@ class Integration_Task():
         loc = (loc or self.loc)
         scale = (scale or self.scale)
 
-
         sample = np.random.normal(loc=loc, scale=scale, size=shape)
 
-
         target = (discount_cumsum(sample, discount) > 0).astype(np.int)
+
         return sample, target
 
     def generate_data_loader(self, length=None, size=None, batch_size=None, data_size=10000, discount=None, loc=None, scale=None, method=None):
@@ -61,13 +71,13 @@ class Integration_Task():
         samples = np.random.normal(loc=loc, scale=scale, size=shape)
 
         if method == 'last':
-            targets = (np.sum(samples, axis=1)>0).astype(np.int)
+            targets = (np.sum(samples, axis=1) > 0).astype(np.int)
             #print(f"sample: {samples} {samples.shape}")
             #print(f"target: {targets} {targets.shape}")
 
         else:
             targets = (discount_cumsum(samples, discount) > 0).astype(np.int)
-        test_portion = int(0.1*len(samples))
+        test_portion = int(0.1 * len(samples))
         train_x = samples[:-test_portion]
         train_y = targets[:-test_portion]
         test_x = samples[-test_portion:]
@@ -77,13 +87,17 @@ class Integration_Task():
         print(f"test x: {test_x.shape}")
         print(f"test y: {test_y.shape}")
 
+        train_data = TensorDataset(torch.from_numpy(
+            train_x), torch.from_numpy(train_y))
+        self.train_loader = DataLoader(
+            train_data, shuffle=True, batch_size=batch_size)
 
-        train_data = TensorDataset(torch.from_numpy(train_x), torch.from_numpy(train_y))
-        self.train_loader = DataLoader(train_data, shuffle=True, batch_size=batch_size)
+        test_data = TensorDataset(torch.from_numpy(
+            test_x), torch.from_numpy(test_y))
+        self.test_loader = DataLoader(
+            test_data, shuffle=False, batch_size=batch_size)
 
-        test_data = TensorDataset(torch.from_numpy(test_x), torch.from_numpy(test_y))
-        self.test_loader = DataLoader(test_data, shuffle=False, batch_size=batch_size)
-        
+
 def discount_cumsum(x, discount):
     """
     magic from rllab for computing discounted cumulative sums of vectors.
@@ -99,15 +113,24 @@ def discount_cumsum(x, discount):
     """
     return signal.lfilter([1], [1, float(-discount)], x[::-1], axis=1)[::-1]
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     task = Integration_Task()
     task.generate_data_loader()
+    sample, target = task.generate_sample()
 
+    fig, (ax1, ax2) = plt.subplots(2, 1)
+    ax1.set_title('sample')
+    ax1.plot(sample[0])
+    ax2.set_title('target')
+    ax2.plot(target[0])
+    plt.show()
+    # plt.savefig(os.path.join(cwd, 'sample_target_example.jpg')
 
-    #for i, (x, target) in enumerate(task.train_loader):
-        #print(i, "i")
-        #print(x.size(), "x")
-        #print(target.size(), "target")
+    # for i, (x, target) in enumerate(task.train_loader):
+    #print(i, "i")
+    #print(x.size(), "x")
+    #print(target.size(), "target")
 
     print("------------------------------")
 
