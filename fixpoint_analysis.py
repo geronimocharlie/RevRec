@@ -10,18 +10,32 @@ from scipy.spatial.distance import pdist, squareform
 
 
 
-def clip_fixpoints(fix_points, fp_losses, tolerance):
+def clip_fixpoints(fix_points, fp_losses, tolerance=0.0001):
     #clip Fps
-    loss_idx = fp_losses < FP_TOLERANCE
+    loss_idx = fp_losses < tolerance
     #keep_idx = np.where(loss_idxss)[0]
     fix_points_w_tol = fix_points[loss_idx]
     fp_losses_w_tol = fp_losses[loss_idx]
     return fix_points_w_tol, fp_losses_w_tol
 
-def oulier_removal(fix_points, fp_losses, outlier_dis, metric='eucledian'):
+def oulier_removal(fix_points, fp_losses, outlier_dis, print=False):
+    """
+    Remove Outliers (points whose closes neighbur is further away than the threshold)
+    """
+    # pairwise difference between all fix points
+    distances = squareform(pdist(fix_points))
 
-    #distances =
-    pass
+    # find closest neighbur for each fix point -> smallest element in each column
+    closest_neighbor = np.partition(distances, axis=0)[1]
+
+    keep_idx = np.where(closest_neighbor < outlier_dist[0])
+    fix_points_keep = fix_points[keep_idx]
+    fp_losses_keep = fp_losses[keep_idx]
+
+    if print:
+        print(f"Removed {len(fix_points) - len(fix_points_keep)} points")
+
+    return fix_points_keep, fp_losses_keep
 
 def keep_unique_fix_points(fix_points, fp_losses):
     pass
@@ -81,19 +95,19 @@ def plot_fixpoints(fix_points, color, show=False):
 
 if __name__=='__main__':
 
-    FP_TOLERANCE = 1e-13
-    model_directory = 'models/GRU_integration_09-08-2020_03-13-31_PM/'
-    fp_file = 'fixpoints_09-08-2020_03-15-14_PM'
-    model_file = 'trained_weights_GRU_integration_epochs_5'
+    FP_TOLERANCE = 1e-14
+    model_directory = 'models/GRU_integration_07-08-2020_12-36-02_PM/'
+    fp_file = 'fixpoints_08-08-2020_12-08-04_PM'
+    model_file = 'trained_weights_GRU_integration_epochs_2'
 
     with open(f'{model_directory}{fp_file}', 'rb') as file:
         fix_points, fp_losses = pickle.load(file)
 
     model = torch.load(f'{model_directory}{model_file}')
 
-
-    fix_points_c, fp_losses_c = clip_fixpoints(fix_points, fp_losses, FP_TOLERANCE)
-    fig1 = plot_fp_qualitiy(fp_losses, fp_losses_c)
+    fix_points_c, fp_losses_c = clip_fixpoints(fix_points, fp_losses, FP_TOL)
+    fix_points_c, fp_losses = oulier_removal(fix_points_c, fp_losses_c, )
+    #fig1 = plot_fp_qualitiy(fp_losses, fp_losses_c)
     fp_readout, _ = get_read_out_projection(fix_points_c, model)
     fig3 = plot_fixpoints(fix_points_c, fp_readout)
     plt.show()

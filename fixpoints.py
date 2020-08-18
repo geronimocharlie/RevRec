@@ -4,23 +4,15 @@ from datetime import datetime
 from rnns import *
 from integration_task import Integration_Task
 import pickle
+from hyperparameters import *
 
-CANDIDATES_BATCHSIZE = 100
-CANDIDATES_ITERS = 50
-#amount of of sampled possible pre-candidates, num_points must be smaller than this.
-CANDIDATES_SAMPLED=CANDIDATES_BATCHSIZE*CANDIDATES_ITERS
-P_NORM=2
-LEARNING_RATE = 0.001
-OPTIMIZATION_ITERS = 5000
-PRINT_EVERY = 100
-task_class = Integration_Task
 
 def calculate_fixpoints(model_path, model_name, num_points):
 
     def generate_candidates(model_path, model_name, num_points):
         model = torch.load(model_path+model_name)
         model.eval()
-        task = task_class(batch_size=CANDIDATES_BATCHSIZE)
+        task = TASK_CLASS(batch_size=CANDIDATES_BATCHSIZE)
         candidates = None
         _i = 0
         for sample, _ in task.train_loader:
@@ -30,7 +22,7 @@ def calculate_fixpoints(model_path, model_name, num_points):
                 break
             _i = _i+1
 
-        # save runs for trajectory plotting 
+        # save runs for trajectory plotting
         with open(model_path + 'exemplary_runs_' + datetime.now().strftime("%d-%m-%Y_%I-%M-%S_%p"), 'wb') as file:
             pickle.dump(candidates.detach().numpy(), file)
 
@@ -40,8 +32,7 @@ def calculate_fixpoints(model_path, model_name, num_points):
         print(candidates.size())
         return candidates.detach().numpy()
 
-    def train_fixpoints(model_path, model_name, fixpoint_candidates):
-        stop_tol = 0.00001
+    def train_fixpoints(model_path, model_name, fixpoint_candidates, stop_tol=0.0001):
         fixpoint_candidates = torch.from_numpy(fixpoint_candidates)
         fixpoint_candidates.requires_grad_()
         model = torch.load(model_path+model_name)
@@ -80,7 +71,7 @@ def calculate_fixpoints(model_path, model_name, num_points):
 
 
     fixpoint_candidates = generate_candidates(model_path, model_name, num_points)
-    trained_fixpoints = train_fixpoints(model_path, model_name, fixpoint_candidates)
+    trained_fixpoints = train_fixpoints(model_path, model_name, fixpoint_candidates, FP_OPT_STOP_TOL)
 
 
 if __name__ == '__main__':
