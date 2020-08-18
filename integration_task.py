@@ -39,8 +39,8 @@ class Integration_Task():
         """
         Function that samples an input target timesieres pair
         @output:
-            sample: (batch_size, lenght, size)
-            target: (batch_size, lenght, out_size)
+            sample: (batch_size, length, size)
+            target: (batch_size, length, out_size)
         """
         length = (length or self.length)
         size = (size or self.size)
@@ -58,9 +58,34 @@ class Integration_Task():
         #axes[0].plot(sample[0])
         #axes[1].plot(target[0])
         # plt.show()
+        return sample, target
 
+    def generate_fix_sample(self, length=None, size=None, batch_size=None, discount=None, mode='increasing'):
+        """
+        Generate artificial sample with either continously incearsing or decreasing integral.
+        """
+        length = (length or self.length)
+        size = (size or self.size)
+        batch_size = (batch_size or self.batch_size)
+        discount = (discount or self.discount)
+        shape = (batch_size, length, size)
+
+        if mode=='increasing':
+            a = np.linspace(-0.5,1.5,length)
+            for i in range(batch_size-1):
+                sample = np.vstack((np.linspace(-0.5,1.5,length), a))
+            sample = np.expand_dims(sample, axis=-1)
+
+        if mode=='decreasing':
+            a = np.linspace(0.5, -1.5, length)
+            for i in range(batch_size-1):
+                sample = np.vstack((np.linspace(0.5, -1.5, length), a))
+            sample = np.expand_dims(sample, axis=-1)
+
+        target = (discount_cumsum(sample, discount) > 0).astype(np.int)
 
         return sample, target
+
 
     def generate_data_loader(self, length=None, size=None, batch_size=None, data_size=10000, discount=None, loc=None, scale=None, method=None):
 
@@ -102,12 +127,16 @@ class Integration_Task():
             test_data, shuffle=False, batch_size=batch_size)
 
 
-    def plot_input_target(self, n, length=None, style='seaborn'):
+    def plot_input_target(self, n, length=None, style='seaborn', mode=None):
         mpl.style.use(style)
-        length = (length or self.lenght)
+        length = (length or self.length)
 
         fig, axes = plt.subplots(2, sharex=True)
-        input, target = self.generate_sample(length=length, batch_size=n)
+        if mode:
+            input, target = self.generate_fix_sample(length=length, batch_size=n, mode=mode)
+        else:
+            input, target = self.generate_sample(length=length, batch_size=n)
+
         for i in range(n):
             axes[0].plot(input[i], alpha=0.7)
             axes[1].plot(target[i], alpha=0.7)
@@ -136,15 +165,17 @@ def discount_cumsum(x, discount):
 
 if __name__ == "__main__":
     task = Integration_Task()
-    task.generate_data_loader()
-    sample, target = task.generate_sample()
+    task.plot_input_target(2, mode='decreasing')
+    task.generate_fix_sample(length=10, batch_size=2)
+    #task.generate_data_loader()
+    #sample, target = task.generate_sample()
 
-    fig, (ax1, ax2) = plt.subplots(2, 1)
-    ax1.set_title('sample')
-    ax1.plot(sample[0])
-    ax2.set_title('target')
-    ax2.plot(target[0])
-    plt.show()
+    #fig, (ax1, ax2) = plt.subplots(2, 1)
+    #ax1.set_title('sample')
+    #ax1.plot(sample[0])
+    #ax2.set_title('target')
+    #ax2.plot(target[0])
+    #plt.show()
     # plt.savefig(os.path.join(cwd, 'sample_target_example.jpg')
 
     # for i, (x, target) in enumerate(task.train_loader):
