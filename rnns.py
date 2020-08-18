@@ -262,7 +262,7 @@ def load_last(folder="models/"):
 
 if __name__ == "__main__":
     input_size = 1
-    hidden_size = 128
+    hidden_size = 100
     num_layers = 1
     output_size =  1  # the google github: number of outputs is 1
     length = 100  # what is sequence length in the integration task?
