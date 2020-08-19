@@ -33,7 +33,7 @@ class Flipflop_task():
         """
         self.channels = [Channel(change_prob) for change_prob in channel_probs]
         self.length = length
-        self.batch_size = batch_size,
+        self.batch_size = batch_size
 
     def generate_sample(self, length):
         input = []
@@ -57,7 +57,10 @@ class Flipflop_task():
         targets = np.stack(targets)
         return inputs, targets
 
-    def generate_data_loader(self, size, length=100):
+    def generate_data_loader(self, length=None, batch_size=None):
+
+        length = (length or self.length)
+        batch_size = (batch_size or self.batch_size)
 
         inputs, targets = self.generate_samples(size, length)
         train_data = TensorDataset(torch.from_numpy(
@@ -67,5 +70,7 @@ class Flipflop_task():
 
         test_data = TensorDataset(torch.from_numpy(
             test_x), torch.from_numpy(test_y))
-        self.test_loader = DataLoader(
+        test_loader = DataLoader(
             test_data, shuffle=False, batch_size=batch_size)
+
+        return train_loader, test_loader

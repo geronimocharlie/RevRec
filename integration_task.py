@@ -93,13 +93,15 @@ class Integration_Task():
 
         train_data = TensorDataset(torch.from_numpy(
             train_x), torch.from_numpy(train_y))
-        self.train_loader = DataLoader(
+        train_loader = DataLoader(
             train_data, shuffle=True, batch_size=batch_size)
 
         test_data = TensorDataset(torch.from_numpy(
             test_x), torch.from_numpy(test_y))
-        self.test_loader = DataLoader(
+        test_loader = DataLoader(
             test_data, shuffle=False, batch_size=batch_size)
+
+        return train_loader, test_loader
 
 
     def plot_input_target(self, n, length=None, style='seaborn'):
