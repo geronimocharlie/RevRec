@@ -5,9 +5,7 @@ import numpy as np
 import torch
 from torch.utils.data import TensorDataset, DataLoader
 import matplotlib.pyplot as plt
-import os
-
-cwd = os.getcwd()
+import matplotlib as mpl
 
 """
 Class that generates samples for a timeseries integration task
@@ -56,6 +54,12 @@ class Integration_Task():
 
         target = (discount_cumsum(sample, discount) > 0).astype(np.int)
 
+        #fig, axes = plt.subplots(2)
+        #axes[0].plot(sample[0])
+        #axes[1].plot(target[0])
+        # plt.show()
+
+
         return sample, target
 
     def generate_data_loader(self, length=None, size=None, batch_size=None, data_size=10000, discount=None, loc=None, scale=None, method=None):
@@ -98,6 +102,22 @@ class Integration_Task():
             test_data, shuffle=False, batch_size=batch_size)
 
 
+    def plot_input_target(self, n, length=None, style='seaborn'):
+        mpl.style.use(style)
+        length = (length or self.lenght)
+
+        fig, axes = plt.subplots(2, sharex=True)
+        input, target = self.generate_sample(length=length, batch_size=n)
+        for i in range(n):
+            axes[0].plot(input[i], alpha=0.7)
+            axes[1].plot(target[i], alpha=0.7)
+            axes[1].set_xlabel("Time [t]")
+            axes[0].set_ylabel("White Noise")
+            axes[1].set_ylabel("Binary Decision")
+        fig.suptitle(f"Integration Task: {n} input and target sequences for {length} time steps")
+        plt.tight_layout()
+        plt.show()
+
 def discount_cumsum(x, discount):
     """
     magic from rllab for computing discounted cumulative sums of vectors.
@@ -132,9 +152,9 @@ if __name__ == "__main__":
     #print(x.size(), "x")
     #print(target.size(), "target")
 
-    print("------------------------------")
+    #print("------------------------------")
 
-    for i, (x, target) in enumerate(task.test_loader):
-        print(i, "i")
-        print(x.size(), "x")
-        print(target.size(), "target")
+    #for i, (x, target) in enumerate(task.test_loader):
+    #    print(i, "i")
+        #print(x.size(), "x")
+        #print(target.size(), "target")
