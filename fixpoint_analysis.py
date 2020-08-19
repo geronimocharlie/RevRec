@@ -9,44 +9,60 @@ import  random
 from rnns import RNN, GRU, LSTM
 from scipy.spatial.distance import pdist, squareform
 
-def plot_with_runs( fix_points, fp_color, runs, runs_color):
+def plot_with_runs( fix_points, runs, fp_color='g', runs_color='r', num_runs='all'):
+    """
+    Plotting fix points and trajectories in one 3d plot.
 
-    # plot all runs
-    # plot with readout on fix_points and on runs
-    NUM_RUNS = 2
-    #print(runs.shape, "shape of runs")
+    @params:
+        fix_points [np.array] (num_fixpoints, hidden_size): array of fix points to plot
+        runs [np.array] (num_runs, sequence_lenght, hidden_size): array of trajectories over time
+        fp_color [str] or [np.array](num_fixpoints, 1, output_size): default color or value of read out activation
+        runs_color [str] or [np.array] (num_runs, seq_length, output_sze): default color or value of read activation of everey point in the run trajectory
+        num_runs [str] or [int]: plotting all trajectories per default, may specifiy number of trajectories to plot
+    """
+
     fix_points_centered = fix_points - np.mean(fix_points, axis=0)
-
 
     pca = PCA(n_components=3)
     transformed_fixpoints = pca.fit_transform(fix_points_centered)
     print('explained_variance: ', pca.explained_variance_ratio_)
 
-    #get some exemplary_runs to also plot
-    random.seed(a=12)
-    runs_list = random.sample(np.split(runs, runs.shape[0]), k=NUM_RUNS)
-    random.seed(a=12)
-    runs_c_list = random.sample(np.split(runs_color, runs_color.shape[0]), k=NUM_RUNS)
+    if num_runs == 'all':
+        runs_list = runs
+        runs_c_list = runs_color
+    else:
+        # choose random choice of tarjectories to plot
+        random.seed(a=12)
+        runs_list = random.sample(np.split(runs, runs.shape[0]), k=num_runs)
+
+        if not(isinstance(runs_color, str)):
+            random.seed(a=12)
+            runs_c_list = random.sample(np.split(runs_color, runs_color.shape[0]), k=num_runs)
+        else:
+            runs_c_list = runs_color
+
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
+
+    # plot fix points with read out color
     ax.scatter(transformed_fixpoints[:,0], transformed_fixpoints[:,1], transformed_fixpoints[:,2], alpha=.5, c=fp_color)
 
-    #for run in runs_list:
-    #    run = pca.transform(np.squeeze(run))
-    #    print(run.shape)
+    # plot trajectories and read out color
     for r,c in zip(runs_list, runs_c_list):
-        print(r.shape, "r.shape")
         run = pca.transform(np.squeeze(r))
         ax.scatter(xs=run[:,0], ys=run[:,1], zs=run[:,2], c=c, alpha=0.2, marker='|')
+
     ax.set_xlabel('PCA 1')
     ax.set_ylabel('PCA 2')
     ax.set_zlabel('PCA 3')
+
     return fig
 
 
-
-
 def clip_fixpoints(fix_points, fp_losses, tolerance=0.0001):
+    """
+    Clipping fix points which losses are greater than the specified tolerance.
+    """
     #clip Fps
     loss_idx = fp_losses < tolerance
     #keep_idx = np.where(loss_idxss)[0]
@@ -54,7 +70,9 @@ def clip_fixpoints(fix_points, fp_losses, tolerance=0.0001):
     fp_losses_w_tol = fp_losses[loss_idx]
     return fix_points_w_tol, fp_losses_w_tol
 
+
 def oulier_removal(fix_points, fp_losses, outlier_dis=1, print=False):
+    #TODO: not yet working
     """
     Remove Outliers (points whose closes neighbur is further away than the threshold)
     """
@@ -73,8 +91,10 @@ def oulier_removal(fix_points, fp_losses, outlier_dis=1, print=False):
 
     return fix_points_keep, fp_losses_keep
 
+
 def keep_unique_fix_points(fix_points, fp_losses):
     pass
+
 
 def plot_fp_qualitiy(fp_losses_original, fp_losses_clippd, show=False):
     # quality of fps
@@ -91,41 +111,47 @@ def plot_fp_qualitiy(fp_losses_original, fp_losses_clippd, show=False):
     else: return fig
 
 
-def get_read_out_projection(fix_points, model, show=True):
+def get_read_out_projection(fix_points, model, show=False):
+    # TODO: adjust to flip flop / 3d task in general
+    """
+    @params:
+        fix_points [np.array] (num_fixpoints, hidden_size)
+        model [nn.Module]
+        show [bool]: showing activation plot
+    """
+
     fix_points = torch.from_numpy(np.expand_dims(fix_points, axis=1))
-    #print(fix_points.size(), 'fixoints shape')
     activations = torch.sigmoid(model.read_out(fix_points))
     activations = activations.detach().numpy()
-    #print('Read out projection:')
-    #print(np.max(activations))
-    #print(np.min(activations))
-    #print(activations.shape)
+
+
     fig = plt.subplot()
     fig.plot(np.sort(np.squeeze(activations)))
     plt.xlabel('Fix points')
     plt.ylabel('Read out activation')
     plt.suptitle('Projection of fix points on read out layer')
-    #fig.set_ylim(0,1)
     if show:
         plt.show()
-    return activations, fig
 
-def get_read_out_projection_run(runs, model, show=False):
-    "runs (num_runs, lenght, hidden_size)"
+    return activations
+
+
+def get_read_out_projection_run(runs, model):
+    # TODO: adjust to flip flop task as well
+    """
+    Getting a read out activation for each point in a trajectory.
+
+    @params:
+        runs [np.array](num_runs, lenght, hidden_size): array of runs
+        model [nn.Module]: model object to provide activations
+
+    @returns:
+        activations [np.array] (num_runs, seq_length, out_size)
+    """
     runs = torch.from_numpy(runs)
     activations = torch.sigmoid(model.read_out(runs))
     activations = activations.detach().numpy()
-    #activations = np.expand_dims(activations, 0)
-    #print("run read out activations shape", activations.shape)
-    #fig = plt.subplot()
-    #fig.plot(np.sort(np.squeeze(activations)))
-    #plt.xlabel('Fix points')
-    #plt.ylabel('Read out activation')
-    #plt.suptitle('Projection of fix points on read out layer')
-    #if show:
-    #    plt.show()
-    return activations#, fig
-
+    return activations
 
 
 def plot_fixpoints(fix_points, color, show=False):
@@ -146,63 +172,110 @@ def plot_fixpoints(fix_points, color, show=False):
     else: return fig
 
 
+def load_fixpoints_and_losses():
+    """
+    @returns:
+        fix_points [np.array] (num_fixpoints, hidden_size): array of fix points
+        fix_points_losses [np.array] (num_fixpoints, 1): array of losses for each fix point
+    """
+    fps = []
+    fp_ls = []
+    for f in FIX_POINT_FILE:
+        with open(f'{MODEL_PATH}{f}', 'rb') as file:
+            fix_points, fp_losses = pickle.load(file)
+            fps.append(fix_points)
+            fp_ls.append(fp_losses)
+
+    fix_points = np.concatenate(fps)
+    fix_points_losses = np.concatenate(fp_ls)
+    return fix_points, fix_points_losses
+    
+
+def load_fixpoints_and_losses_with_readout():
+    """
+    @returns:
+        fix_points [np.array] (num_fixpoints, hidden_size): array of fix points
+        fix_points_losses [np.array] (num_fixpoints, 1): array of losses for each fix point
+        fix_points_readout [np.array] (num_fixpoints, 1, output_size): array of read out activation for each fix points
+    """
+    fps = []
+    fp_ls = []
+    for f in FIX_POINT_FILE:
+        with open(f'{MODEL_PATH}{f}', 'rb') as file:
+            fix_points, fp_losses = pickle.load(file)
+            fps.append(fix_points)
+            fp_ls.append(fp_losses)
+
+    fix_points = np.concatenate(fps)
+    fix_points_losses = np.concatenate(fp_ls)
+
+    fp_r = []
+    for f in fps:
+        fp_readout = get_read_out_projection(f, model)
+        fp_r.append(fp_readout)
+
+    fix_points_readout = np.concatenate(fp_r)
+
+    return fix_points, fix_points_losses, fix_points_readout
+
+def load_runs():
+    """
+    Loadnig all the saved trajectories including read out projection.
+
+    @returns:
+        runs [np.array] (num_runs, sequence_length, hidden_size): array of all runs
+        runs_readout [np.array] (num_runs, sequence_length, output_size): read out activation for each ponit of the run
+    """
+    runs = []
+    for f in RUN_FILE:
+        with open(f'{MODEL_PATH}{f}', 'rb') as file:
+            run = pickle.load(file)
+            runs.append(run)
+    r_r = []
+    for r in runs:
+        r_readout = get_read_out_projection_run(r, model)
+        r_r.append(r_readout)
+
+    if len(runs)>0:
+        runs = np.concatenate(runs)
+        runs_readout = np.concatenate(r_r)
+    else:
+        runs = None
+        runs_readout = None
+
+    return runs, runs_readout
+
+
+
 if __name__=='__main__':
     mode = 'charlie'
-    #mode = 'charlie'
+    #mode = 'leon'
+
     if mode == 'charlie':
-        #FP_TOLERANCE = 1e-14
+        FP_TOLERANCE = 1e-14
 
-        fps = []
-        fp_ls = []
-        for f in FIX_POINT_FILE:
-            with open(f'{MODEL_PATH}{f}', 'rb') as file:
-                fix_points, fp_losses = pickle.load(file)
-                fps.append(fix_points)
-                fp_ls.append(fp_losses)
-
+        # load model
         model = torch.load(f'{MODEL_PATH}{MODEL_NAME}')
 
-        runs = []
-        for f in RUN_FILE:
-            with open(f'{MODEL_PATH}{f}', 'rb') as file:
-                run = pickle.load(file)
-                runs.append(run)
-        #print(fix_points.shape, "fp shape")
+        # load fixpoints and read_outs
+        fps, fps_ls, fps_rs = load_fixpoints_and_losses_with_readout()
 
-        #fix_points_c, fp_losses_c = clip_fixpoints(fix_points, fp_losses, FP_TOL)
-        #print(fix_points_c.shape, "fp clipped shape")
+        # if provided load trajectories
+        if len(RUN_FILE)>0:
+            runs, runs_r = load_runs()
+
+        # clipping of fix points and analyzing fix point quality
+        fps_c, fps_ls_c = clip_fixpoints(fps, fps_ls, FP_TOL)
+        print(f"removed {fps.shape[0] - fps_c.shape[0]} fix points during clipping")
         #fix_points_c, fp_losses = oulier_removal(fix_points_c, fp_losses_c )
-        #fig1 = plot_fp_qualitiy(fp_losses, fp_losses_c)
+        fig1 = plot_fp_qualitiy(fps_ls, fps_ls_c)
 
-        fp_r = []
-        for f in fps:
-            #print(f.shape, "fix_in shape")
-            fp_readout, _ = get_read_out_projection(f, model)
-            #print(fp_readout.shape, "fp readout shape")
-            fp_r.append(fp_readout)
-        r_r = []
-        for r in runs:
-            #print(r.shape, "run shape")
-            r_readout = get_read_out_projection_run(r, model)
-            print(r_readout.shape, "r_readout shape")
-            r_r.append(r_readout)
+        # plotting fix points (optioanlly with runs)
+        if len(RUN_FILE)>0:
+            fig = plot_with_runs(fps, runs, fps_rs, runs_r) #fps_rs, runs_r)
+        else:
+            fig = plot_fixpoints(fps, fps_rs)
 
-
-
-
-        fp = np.concatenate(fps)
-        print(f"fp shape {fp.shape}")
-        fp_rs = np.concatenate(fp_r)
-        print(f"fp_rs shape {fp_rs.shape}")
-        rs = np.concatenate(runs)
-        print(f"runs shape {rs.shape}")
-        runs_readout = np.concatenate(r_r)
-        print(f"frns_readout shape {runs_readout.shape}")
-
-        #print(f"run readout")
-
-        #fig3 = plot_fixpoints(fp, fp_rs)
-        fig = plot_with_runs(fp, fp_r, rs, runs_readout)
         plt.show()
 
 

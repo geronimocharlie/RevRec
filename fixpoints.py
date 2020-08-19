@@ -6,16 +6,18 @@ from integration_task import Integration_Task
 import pickle
 from hyperparameters import *
 
-#TASK_CLASS = Integration_Task
 
 
 def generate_candidates(model_path, model_name, num_points):
+
     model = torch.load(model_path+model_name)
     model.eval()
     task = TASK_CLASS(batch_size=CANDIDATES_BATCHSIZE)
+    train_loader, _ = task.generate_data_loader()
     candidates = None
+
     _i = 0
-    for sample, _ in task.train_loader:
+    for sample, _ in train_loader:
         _, hidden_states = model.forward(sample.float())
         candidates = hidden_states if candidates==None else torch.cat([candidates, hidden_states])
         if _i >CANDIDATES_ITERS:
@@ -32,6 +34,7 @@ def generate_candidates(model_path, model_name, num_points):
     print(candidates.size())
 
     return candidates.detach().numpy()
+
 
 def train_fixpoints(model_path, model_name, fixpoint_candidates, stop_tol=0.0001, input='zeros'):
 
@@ -60,24 +63,24 @@ def train_fixpoints(model_path, model_name, fixpoint_candidates, stop_tol=0.0001
             print(loss)
         if loss < stop_tol:
             break
-    #with open(model_path +  'fixpoints_' + datetime.now().strftime("%d-%m-%Y_%I-%M-%S_%p"), 'wb') as file:
-    #    pickle.dump(fixpoint_candidates.detach().numpy(), file)
 
     # get loss (speed) fon each found fix point
     loss_f = torch.nn.MSELoss(reduction='none')
     _, hidden_states = model.forward(torch.zeros((fixpoint_candidates.size()[0],1,1)))
     fp_losses = loss_f(fixpoint_candidates, torch.squeeze(hidden_states))
-    print(fp_losses.size())
     fp_losses = fp_losses.detach().numpy()
     fp_losses = np.mean(fp_losses, axis=-1)
-    print(fp_losses.shape)
-
 
 
     with open(model_path +  'fixpoints_and_losses_input_' + input + datetime.now().strftime("%d-%m-%Y_%I-%M-%S_%p"), 'wb') as file:
         pickle.dump((fixpoint_candidates.detach().numpy(), fp_losses), file)
 
+
 def save_runs_artificial_input(model_path, model_name, batch_size, mode='increasing'):
+        """
+        Saving trajectories of model running on designed input. Currently only supported for Integration Task.
+        """
+
         model = torch.load(model_path+model_name)
         model.eval()
         task = TASK_CLASS(batch_size = batch_size)
@@ -90,13 +93,13 @@ def save_runs_artificial_input(model_path, model_name, batch_size, mode='increas
 
 
 if __name__ == '__main__':
-    model_path = 'models/GRU_integration_09-08-2020_03-13-31_PM/'
-    model_name = 'trained_weights_GRU_integration_epochs_5'
 
-    num_points= 10000
+
     variants= ['zeros', 'positive', 'negative']
-    fixpoint_candidates = generate_candidates(MODEL_PATH, MODEL_NAME, num_points)
+    fixpoint_candidates = generate_candidates(MODEL_PATH, MODEL_NAME, NUM_POINTS)
     for v in variants:
         train_fixpoints(MODEL_PATH, MODEL_NAME, fixpoint_candidates, FP_OPT_STOP_TOL, input=v)
+
+    # olny if task is integration
     save_runs_artificial_input(MODEL_PATH, MODEL_NAME, 20, mode='decreasing')
     save_runs_artificial_input(MODEL_PATH, MODEL_NAME, 20, mode='increasing')
