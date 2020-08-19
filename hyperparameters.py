@@ -1,3 +1,4 @@
+from integration_task import Integration_Task
 # RNN
 LEARNING_RATE = 0.001
 

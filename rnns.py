@@ -159,6 +159,7 @@ def train_fn(batch_size, seq_length, num_epochs, model, task_name='integration',
     if task_name == 'integration':
         task = Integration_Task(
             length=seq_length, batch_size=batch_size, discount=disco)
+        train_loader, test_loader = task.generate_data_loader()
 
     # initialize optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
@@ -175,7 +176,7 @@ def train_fn(batch_size, seq_length, num_epochs, model, task_name='integration',
 
         avg_loss = 0
 
-        for iter, (samples, targets) in enumerate(task.train_loader):
+        for iter, (samples, targets) in enumerate(train_loader):
             #samples, targets = task.generate_sample()
             #samples = torch.from_numpy(samples).float().requires_grad_()
             #targets = torch.from_numpy(targets)
@@ -196,13 +197,13 @@ def train_fn(batch_size, seq_length, num_epochs, model, task_name='integration',
 
             if iter % print_every == 0:
                 print(
-                    f"Epoch {epoch}/{num_epochs}...Iter: {iter}/{len(task.train_loader)}....Average Loss for Epoch: {avg_loss/iter}")
+                    f"Epoch {epoch}/{num_epochs}...Iter: {iter}/{len(train_loader)}....Average Loss for Epoch: {avg_loss/iter}")
 
         losses.append(avg_loss / iter)
-        accuracies.append(evaluate(model, task))
+        accuracies.append(evaluate(model, task, test_loader))
 
     print("---------Finished Training--------")
-    evaluate(model, task)
+    evaluate(model, task, test_loader)
 
     #htrained = model.init_hidden
     #print(htrained, "h after")
@@ -232,13 +233,13 @@ def save(supfolder, model, task_name, epoch, accuracies, losses):
     plt.savefig(f"trainnig_progress_{model.name}_epochs_{epoch}.png")
 
 
-def evaluate(model, task, last=False, avg_losses=None, avg_accuracies=None):
+def evaluate(model, task, test_loader, last=False, avg_losses=None, avg_accuracies=None):
     model.eval()
     predictions = []
     targets = []
     accuracies = []
 
-    for i, (input, target) in enumerate(task.train_loader):
+    for i, (input, target) in enumerate(test_loader):
 
         #input, target = task.generate_sample()
         #input = torch.from_numpy(input)

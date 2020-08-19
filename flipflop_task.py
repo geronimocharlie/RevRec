@@ -1,6 +1,7 @@
 import numpy as np
 import random
 from torch.utils.data import TensorDataset, DataLoader
+import torch
 
 
 class Flipflop_task():
@@ -31,7 +32,7 @@ class Flipflop_task():
         @params:
             - channel_probs: list of len num_channels, respective entry is the probability of a change in a single step
         """
-        self.channels = [Channel(change_prob) for change_prob in channel_probs]
+        self.channels = [self.Channel(change_prob) for change_prob in channel_probs]
         self.length = length
         self.batch_size = batch_size
         self.num_samples=num_samples
@@ -40,14 +41,14 @@ class Flipflop_task():
         input = []
         target = []
         for channel in self.channels:
-            c_in, c_tar = channel.create_trajectory
+            c_in, c_tar = channel.create_trajectory()
             input.append(c_in)
             target.append(c_tar)
         input = np.stack(input, axis=-1)
         target = np.stack(target, axis=-1)
         return input, target
 
-    def generate_samples(num_samples, length=None):
+    def generate_samples(self, num_samples, length=None):
         inputs = []
         targets = []
         for _ in range(num_samples):
@@ -58,7 +59,7 @@ class Flipflop_task():
         targets = np.stack(targets)
         return inputs, targets
 
-    def generate_data_loader(self, length=None, num_samples, batch_size=None):
+    def generate_data_loader(self, length=None, num_samples=None, batch_size=None):
 
         length = (length or self.length)
         num_samples = (num_samples or self.num_samples)
@@ -80,5 +81,7 @@ class Flipflop_task():
 
         return train_loader, test_loader
 
-if __name__ == 'main':
-    test = Flipflop_task([.1,.1,.1, size=])
+if __name__ == '__main__':
+    test = Flipflop_task([.1,.1,.1])
+    samples = test.generate_samples(10000)
+    print(samples)
