@@ -60,7 +60,7 @@ class Integration_Task():
         # plt.show()
         return sample, target
 
-    def generate_fix_sample(self, length=None, size=None, batch_size=None, discount=None, mode='increasing'):
+    def generate_fix_sample(self, length=None, size=None, batch_size=None, discount=None, mode='increasing', shift=True, req_torch=True):
         """
         Generate artificial sample with either continously incearsing or decreasing integral.
         """
@@ -69,20 +69,43 @@ class Integration_Task():
         batch_size = (batch_size or self.batch_size)
         discount = (discount or self.discount)
         shape = (batch_size, length, size)
+        print(batch_size, "n")
 
         if mode=='increasing':
-            a = np.linspace(-0.5,1.5,length)
-            for i in range(batch_size-1):
-                sample = np.vstack((np.linspace(-0.5,1.5,length), a))
-            sample = np.expand_dims(sample, axis=-1)
+            if shift:
+                ix = np.linspace(0,1,batch_size-1)
+                a = np.linspace(-0.5,1.5,length)
+                for i in ix:
+                    print(i)
+                    sample = np.vstack((np.linspace(-0.5+i,1.5+i,length), a))
+                    a = sample
+                sample = np.expand_dims(sample, axis=-1)
+                print(sample.shape, "final sample")
+            else:
+                a = np.linspace(-0.5 ,1.5,length)
+                for i in range(batch_size-1):
+                    sample = np.vstack((np.linspace(-0.5,1.5,length), a))
+                sample = np.expand_dims(sample, axis=-1)
 
         if mode=='decreasing':
-            a = np.linspace(0.5, -1.5, length)
-            for i in range(batch_size-1):
-                sample = np.vstack((np.linspace(0.5, -1.5, length), a))
-            sample = np.expand_dims(sample, axis=-1)
+                if shift:
+                    ix = np.linspace(0,1,batch_size-1)
+                    a = np.linspace(-0.5,1.5,length)
+                    for i in ix:
+                        sample = np.vstack((np.linspace(-0.5-i,1.5-i,length), a))
+                        a = sample
+                    sample = np.expand_dims(sample, axis=-1)
+                else:
+                    a = np.linspace(0.5, -1.5, length)
+                    for i in range(batch_size-1):
+                        sample = np.vstack((np.linspace(0.5, -1.5, length), a))
+                    sample = np.expand_dims(sample, axis=-1)
 
         target = (discount_cumsum(sample, discount) > 0).astype(np.int)
+
+        if req_torch:
+            sample = torch.from_numpy(sample)
+            target = torch.from_numpy(target)
 
         return sample, target
 
@@ -134,6 +157,8 @@ class Integration_Task():
         fig, axes = plt.subplots(2, sharex=True)
         if mode:
             input, target = self.generate_fix_sample(length=length, batch_size=n, mode=mode)
+            print(input.shape)
+            print(target.shape)
         else:
             input, target = self.generate_sample(length=length, batch_size=n)
 
@@ -165,7 +190,7 @@ def discount_cumsum(x, discount):
 
 if __name__ == "__main__":
     task = Integration_Task()
-    task.plot_input_target(2, mode='decreasing')
+    task.plot_input_target(10, mode='increasing')
     task.generate_fix_sample(length=10, batch_size=2)
     #task.generate_data_loader()
     #sample, target = task.generate_sample()
