@@ -27,7 +27,7 @@ class Flipflop_task():
 
 
 
-    def __init__(self, channel_probs, length=100, num_samples=10000, batch_size=32):
+    def __init__(self, channel_probs, length=100, num_samples=10000, batch_size=10):
         """
         @params:
             - channel_probs: list of len num_channels, respective entry is the probability of a change in a single step
@@ -57,6 +57,7 @@ class Flipflop_task():
             targets.append(s_tar)
         inputs = np.stack(inputs)
         targets = np.stack(targets)
+        targets[targets==-1]=0
         return inputs, targets
 
     def generate_data_loader(self, length=None, num_samples=None, batch_size=None):

@@ -5,6 +5,7 @@ import torch
 import numpy as np
 from hyperparameters import *
 from integration_task import Integration_Task
+from flipflop_task import Flipflop_task
 import matplotlib.pyplot as plt
 from datetime import datetime
 import os
@@ -75,6 +76,7 @@ class GRU(nn.Module):
 
     def __init__(self, input_size, hidden_size, num_layers, output_size, batch_size):
         super(GRU, self).__init__()
+        print('out_size', output_size)
         self.hidden_size = hidden_size
         self.batch_size = batch_size
         self.input_size = input_size
@@ -101,10 +103,6 @@ class GRU(nn.Module):
         return hidden
 
     def forward(self, x, h=None, method=None):
-
-        #h = (h or self.init_hidden)
-        # if h==None:
-            #h = self.init_hidden
         hidden_state, final_state = self.gru(x, h)
 
         if method == 'last':
@@ -161,6 +159,9 @@ def train_fn(batch_size, seq_length, num_epochs, model, task_name='integration',
             length=seq_length, batch_size=batch_size, discount=disco)
         train_loader, test_loader = task.generate_data_loader()
 
+    if task_name == 'flipflop':
+        task = Flipflop_task([.1,.1,.1])
+        train_loader, test_loader = task.generate_data_loader()
     # initialize optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
@@ -271,14 +272,14 @@ def load_last(folder="models/"):
 
 
 if __name__ == "__main__":
-    input_size = 1
+    input_size = 3
     hidden_size = 100
     num_layers = 1
-    output_size = 1  # the google github: number of outputs is 1
+    output_size = 3  # the google github: number of outputs is 1
     length = 100  # what is sequence length in the integration task?
     batch_size = 10
     num_epochs = 5
 
     model = GRU(input_size, hidden_size, num_layers, output_size, batch_size)
     #model = LSTM(input_size, hidden_size, num_layers, output_size, batch_size)
-    train_fn(batch_size, length, num_epochs, model, 'integration', disco=.9)
+    train_fn(batch_size, length, num_epochs, model, 'flipflop', disco=.9)
