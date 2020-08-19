@@ -32,7 +32,6 @@ class Integration_Task():
         self.scale = scale
         self.train_loader = None  # set by generate_data_loader
         self.test_loader = None  # set by generate_data_loader
-        self.generate_data_loader()
         self.default_obs_shape = (batch_size, length, size)
 
     def generate_sample(self, length=None, size=None, batch_size=None, discount=None, loc=None, scale=None):
@@ -141,13 +140,15 @@ class Integration_Task():
 
         train_data = TensorDataset(torch.from_numpy(
             train_x), torch.from_numpy(train_y))
-        self.train_loader = DataLoader(
+        train_loader = DataLoader(
             train_data, shuffle=True, batch_size=batch_size)
 
         test_data = TensorDataset(torch.from_numpy(
             test_x), torch.from_numpy(test_y))
-        self.test_loader = DataLoader(
+        test_loader = DataLoader(
             test_data, shuffle=False, batch_size=batch_size)
+
+        return train_loader, test_loader
 
 
     def plot_input_target(self, n, length=None, style='seaborn', mode=None):

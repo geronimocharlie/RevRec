@@ -1,3 +1,5 @@
+# Deprecated, just quick sanity test and proof of concept in tensorflow due to the team being more experienced in tf. 
+
 import tensorflow as tf
 import numpy as np
 from tensorflow import keras

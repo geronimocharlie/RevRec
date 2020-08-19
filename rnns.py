@@ -1,11 +1,16 @@
+#! /usr/bin/python3
+
 import torch.nn as nn
 import torch
 import numpy as np
 from hyperparameters import *
 from integration_task import Integration_Task
+from flipflop_task import Flipflop_task
 import matplotlib.pyplot as plt
 from datetime import datetime
 import os
+
+current_dir = os.getcwd()
 
 class RNN(nn.Module):
 
@@ -14,9 +19,10 @@ class RNN(nn.Module):
         '''
         @params:
             input_size [int]:  expected features in input
-            hidden_size [int]: numbers of features in hidden state
-            num_layers [int]: number of recurrent layers
+            hidden_size [int]: numbers of features in hidden state / hidden dimensions
+            num_layers [int]: number of recurrent layers / Number of hidden layers
             activation [str]: activation function
+            batch_size [int]: number of samples per batch
 
         '''
 
@@ -37,6 +43,7 @@ class RNN(nn.Module):
 
         self.rnn = nn.RNN(input_size, hidden_size, num_layers,
                           nonlinearity=activation, batch_first=True)
+        # Readout layer
         self.read_out = nn.Linear(hidden_size, output_size)
         self.name = 'RNN'
         self.folder_name = ""
@@ -44,6 +51,8 @@ class RNN(nn.Module):
     def init_hidden_state(self):
 
         weight = next(self.parameters()).data
+        # Initialize hidden state with zeros
+        # (num_layers, batch_size, hidden_size)
         hidden = weight.new(self.num_layers, self.batch_size,
                             self.hidden_size).zero_()
         return hidden
@@ -67,6 +76,7 @@ class GRU(nn.Module):
 
     def __init__(self, input_size, hidden_size, num_layers, output_size, batch_size):
         super(GRU, self).__init__()
+        print('out_size', output_size)
         self.hidden_size = hidden_size
         self.batch_size = batch_size
         self.input_size = input_size
@@ -86,7 +96,6 @@ class GRU(nn.Module):
         #self.init_hidden = weight.new(self.num_layers, self.batch_size, self.hidden_size).normal_(mean=0, std=np.sqrt(1/hidden_size)).requires_grad_()
         #self.init_hidden = nn.Parameter(hidden0, requires_grad=True)
 
-
     def init_hidden_state(self):
         weight = next(self.parameters()).data
         hidden = weight.new(self.num_layers, self.batch_size,
@@ -94,10 +103,6 @@ class GRU(nn.Module):
         return hidden
 
     def forward(self, x, h=None, method=None):
-
-        #h = (h or self.init_hidden)
-        #if h==None:
-            #h = self.init_hidden
         hidden_state, final_state = self.gru(x, h)
 
         if method == 'last':
@@ -141,8 +146,7 @@ class LSTM(nn.Module):
         return out, final_state
 
 
-
-def train_fn(batch_size, seq_length, num_epochs, model, task_name='integration', print_every=100, path = 'models/', disco=1.):
+def train_fn(batch_size, seq_length, num_epochs, model, task_name='integration', print_every=100, path=os.path.join(current_dir, 'models'), disco=1.):
     """
     @params:
 
@@ -151,9 +155,13 @@ def train_fn(batch_size, seq_length, num_epochs, model, task_name='integration',
     accuracies = []
 
     if task_name == 'integration':
-        task = Integration_Task(length=seq_length, batch_size=batch_size, discount=disco)
+        task = Integration_Task(
+            length=seq_length, batch_size=batch_size, discount=disco)
+        train_loader, test_loader = task.generate_data_loader()
 
-
+    if task_name == 'flipflop':
+        task = Flipflop_task([.1,.1,.1])
+        train_loader, test_loader = task.generate_data_loader()
     # initialize optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
@@ -162,15 +170,14 @@ def train_fn(batch_size, seq_length, num_epochs, model, task_name='integration',
 
     iter = 0
 
-
     for epoch in range(num_epochs):
         epoch += 1
         model.train()
-            #h = model.init_hidden_state()
+        #h = model.init_hidden_state()
 
         avg_loss = 0
 
-        for iter, (samples, targets) in enumerate(task.train_loader):
+        for iter, (samples, targets) in enumerate(train_loader):
             #samples, targets = task.generate_sample()
             #samples = torch.from_numpy(samples).float().requires_grad_()
             #targets = torch.from_numpy(targets)
@@ -190,13 +197,14 @@ def train_fn(batch_size, seq_length, num_epochs, model, task_name='integration',
             optimizer.step()
 
             if iter % print_every == 0:
-                print(f"Epoch {epoch}/{num_epochs}...Iter: {iter}/{len(task.train_loader)}....Average Loss for Epoch: {avg_loss/iter}")
+                print(
+                    f"Epoch {epoch}/{num_epochs}...Iter: {iter}/{len(train_loader)}....Average Loss for Epoch: {avg_loss/iter}")
 
         losses.append(avg_loss / iter)
-        accuracies.append(evaluate(model, task))
+        accuracies.append(evaluate(model, task, test_loader))
 
     print("---------Finished Training--------")
-    evaluate(model, task)
+    evaluate(model, task, test_loader)
 
     #htrained = model.init_hidden
     #print(htrained, "h after")
@@ -209,11 +217,12 @@ def save(supfolder, model, task_name, epoch, accuracies, losses):
 
     time_stamp = datetime.now().strftime("%d-%m-%Y_%I-%M-%S_%p")
     model.folder_name = f"{supfolder}/{model.name}_{task_name}_{time_stamp}"
-    os.mkdir(model.folder_name)
+    os.makedirs(model.folder_name)
     os.chdir(model.folder_name)
-    torch.save(model, f"trained_weights_{model.name}_{task_name}_epochs_{epoch}")
+    torch.save(
+        model, f"trained_weights_{model.name}_{task_name}_epochs_{epoch}")
 
-    fig, axes = plt.subplots(2,1, sharex=True)
+    fig, axes = plt.subplots(2, 1, sharex=True)
     axes[0].plot(accuracies)
     axes[0].set_xlabel("Epochs")
     axes[0].set_ylabel("Mean Accuracies for Testset")
@@ -224,13 +233,14 @@ def save(supfolder, model, task_name, epoch, accuracies, losses):
     plt.show()
     plt.savefig(f"trainnig_progress_{model.name}_epochs_{epoch}.png")
 
-def evaluate(model, task, last=False, avg_losses=None, avg_accuracies=None):
+
+def evaluate(model, task, test_loader, last=False, avg_losses=None, avg_accuracies=None):
     model.eval()
     predictions = []
     targets = []
     accuracies = []
 
-    for i, (input, target) in enumerate(task.train_loader):
+    for i, (input, target) in enumerate(test_loader):
 
         #input, target = task.generate_sample()
         #input = torch.from_numpy(input)
@@ -256,19 +266,20 @@ def evaluate(model, task, last=False, avg_losses=None, avg_accuracies=None):
 
     return np.mean(accuracies)
 
+
 def load_last(folder="models/"):
     pass
 
 
 if __name__ == "__main__":
-    input_size = 1
+    input_size = 3
     hidden_size = 100
     num_layers = 1
-    output_size =  1  # the google github: number of outputs is 1
+    output_size = 3  # the google github: number of outputs is 1
     length = 100  # what is sequence length in the integration task?
     batch_size = 10
     num_epochs = 5
 
     model = GRU(input_size, hidden_size, num_layers, output_size, batch_size)
     #model = LSTM(input_size, hidden_size, num_layers, output_size, batch_size)
-    train_fn(batch_size, length, num_epochs, model, 'integration', disco=.9)
+    train_fn(batch_size, length, num_epochs, model, 'flipflop', disco=.9)
