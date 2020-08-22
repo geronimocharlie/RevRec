@@ -83,7 +83,7 @@ class Flipflop_task():
 
         return train_loader, test_loader
 
-    def plot_input_pulses():
+    #def plot_input_pulses():
 
 
 if __name__ == '__main__':
