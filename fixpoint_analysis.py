@@ -178,7 +178,9 @@ if __name__=='__main__':
         for f in fps:
             #print(f.shape, "fix_in shape")
             fp_readout, _ = get_read_out_projection(f, model)
-            #print(fp_readout.shape, "fp readout shape")
+            if TASK_CLASS().size == 3:
+                fp_readout = (np.squeeze(fp_readout)/2) + .5
+            print(fp_readout.shape, "fp readout shape")
             fp_r.append(fp_readout)
         r_r = []
         for r in runs:
@@ -189,23 +191,34 @@ if __name__=='__main__':
 
 
 
-
         fp = np.concatenate(fps)
         print(f"fp shape {fp.shape}")
         fp_rs = np.concatenate(fp_r)
         print(f"fp_rs shape {fp_rs.shape}")
-        rs = np.concatenate(runs)
-        print(f"runs shape {rs.shape}")
-        runs_readout = np.concatenate(r_r)
-        print(f"frns_readout shape {runs_readout.shape}")
+        #rs = np.concatenate(runs)
+        #print(f"runs shape {rs.shape}")
+        #runs_readout = np.concatenate(r_r)
+        #print(f"frns_readout shape {runs_readout.shape}")
 
         #print(f"run readout")
 
-        #fig3 = plot_fixpoints(fp, fp_rs)
-        fig = plot_with_runs(fp, fp_r, rs, runs_readout)
+        fig3 = plot_fixpoints(fp, fp_rs)
+
+        #fig = plot_with_runs(fp, fp_r, rs, runs_readout)
         plt.show()
 
 
 
     if mode == 'leon':
-        plot_with_runs('/home/falconinae/Documents/University/NDyn/RevRec/models/GRU_integration_07-08-2020_05-46-00_PM/fixpoints_07-08-2020_11-40-14_PM', '/home/falconinae/Documents/University/NDyn/RevRec/models/GRU_integration_07-08-2020_05-46-00_PM/exemplary_runs_09-08-2020_02-32-55_PM')
+        fps = []
+        fp_ls = []
+        for f in FIX_POINT_FILE:
+            with open(f'{MODEL_PATH}{f}', 'rb') as file:
+                fix_points, fp_losses = pickle.load(file)
+                fps.append(fix_points)
+                fp_ls.append(fp_losses)
+
+
+        model = torch.load(f'{MODEL_PATH}{MODEL_NAME}')
+
+        fig3 = plot_fixpoints(fp, fp_rs)

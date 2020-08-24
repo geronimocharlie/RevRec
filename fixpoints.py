@@ -15,7 +15,9 @@ def generate_candidates(model_path, model_name, num_points):
     task = TASK_CLASS(batch_size=CANDIDATES_BATCHSIZE)
     candidates = None
     _i = 0
-    for sample, _ in task.train_loader:
+
+    train_loader = task.generate_data_loader()[0]
+    for sample, _ in train_loader:
         _, hidden_states = model.forward(sample.float())
         candidates = hidden_states if candidates==None else torch.cat([candidates, hidden_states])
         if _i >CANDIDATES_ITERS:
@@ -34,17 +36,16 @@ def generate_candidates(model_path, model_name, num_points):
     return candidates.detach().numpy()
 
 def train_fixpoints(model_path, model_name, fixpoint_candidates, stop_tol=0.0001, input='zeros'):
-
-
+    task = TASK_CLASS(batch_size=CANDIDATES_BATCHSIZE)
     fixpoint_candidates = torch.from_numpy(fixpoint_candidates)
     fixpoint_candidates.requires_grad_()
     if input=='zeros':
     #    x_star = torch.zeros((fixpoint_candidates.size()[0],1,1))
-        x_star = torch.zeros((fixpoint_candidates.size()[0],1,1))
+        x_star = torch.zeros((fixpoint_candidates.size()[0],1,task.size))
     if input=='negative':
-        x_star = torch.add(torch.zeros((fixpoint_candidates.size()[0],1,1)), -1)
+        x_star = torch.add(torch.zeros((fixpoint_candidates.size()[0],1,task.size)), -1)
     if input=='positive':
-        x_star = torch.add(torch.zeros((fixpoint_candidates.size()[0],1,1)), 1)
+        x_star = torch.add(torch.zeros((fixpoint_candidates.size()[0],1,task.size)), 1)
 
     model = torch.load(model_path+model_name)
     loss_f = torch.nn.MSELoss()
@@ -65,7 +66,7 @@ def train_fixpoints(model_path, model_name, fixpoint_candidates, stop_tol=0.0001
 
     # get loss (speed) fon each found fix point
     loss_f = torch.nn.MSELoss(reduction='none')
-    _, hidden_states = model.forward(torch.zeros((fixpoint_candidates.size()[0],1,1)))
+    _, hidden_states = model.forward(torch.zeros((fixpoint_candidates.size()[0],1,task.size)))
     fp_losses = loss_f(fixpoint_candidates, torch.squeeze(hidden_states))
     print(fp_losses.size())
     fp_losses = fp_losses.detach().numpy()
@@ -98,5 +99,5 @@ if __name__ == '__main__':
     fixpoint_candidates = generate_candidates(MODEL_PATH, MODEL_NAME, num_points)
     for v in variants:
         train_fixpoints(MODEL_PATH, MODEL_NAME, fixpoint_candidates, FP_OPT_STOP_TOL, input=v)
-    save_runs_artificial_input(MODEL_PATH, MODEL_NAME, 20, mode='decreasing')
-    save_runs_artificial_input(MODEL_PATH, MODEL_NAME, 20, mode='increasing')
+    #save_runs_artificial_input(MODEL_PATH, MODEL_NAME, 20, mode='decreasing')
+    #save_runs_artificial_input(MODEL_PATH, MODEL_NAME, 20, mode='increasing')

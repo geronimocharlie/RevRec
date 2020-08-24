@@ -27,7 +27,7 @@ class Flipflop_task():
 
 
 
-    def __init__(self, channel_probs, length=100, num_samples=10000, batch_size=10):
+    def __init__(self, channel_probs=[.1,.1,.1], length=100, num_samples=10000, batch_size=10):
         """
         @params:
             - channel_probs: list of len num_channels, respective entry is the probability of a change in a single step
@@ -36,6 +36,7 @@ class Flipflop_task():
         self.length = length
         self.batch_size = batch_size
         self.num_samples=num_samples
+        self.size = len(channel_probs)
 
     def generate_sample(self, length):
         input = []
