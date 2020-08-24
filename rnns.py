@@ -173,7 +173,7 @@ def train_fn(model, num_epochs, seq_length, batch_size=None, task_name='integrat
         train_loader, test_loader = task.generate_data_loader()
 
     if task_name == 'flipflop':
-        task = Flipflop_task([.1,.1,.1])
+        task = Flipflop_task([.1, .1, .1])
         train_loader, test_loader = task.generate_data_loader()
 
     # initialize optimizer
@@ -243,7 +243,8 @@ def save(path, model, task_name, epoch, accuracies, losses):
     model.folder_name = f"{path}/{model.name}_{task_name}_{time_stamp}"
     os.makedirs(model.folder_name)
     os.chdir(model.folder_name)
-    torch.save(model, f"trained_weights_{model.name}_{task_name}_epochs_{epoch}")
+    torch.save(
+        model, f"trained_weights_{model.name}_{task_name}_epochs_{epoch}")
 
     fig, axes = plt.subplots(2, 1, sharex=True)
     axes[0].plot(accuracies)
@@ -299,9 +300,11 @@ def load_last(folder="models/"):
 
 if __name__ == "__main__":
 
-    mode = 'charliex'
+    mode = 'charlie'
+
     if mode == 'charlie':
-        model = GRU(INPUT_SIZE, HIDDEN_SIZE, NUM_LAYERS, OUTPUT_SIZE, BATCH_SIZE)
+        model = GRU(INPUT_SIZE, HIDDEN_SIZE,
+                    NUM_LAYERS, OUTPUT_SIZE, BATCH_SIZE)
         train_fn(model, NUM_EPOCHS, LENGHT, BATCH_SIZE, 'integration')
 
     else:
@@ -313,6 +316,8 @@ if __name__ == "__main__":
         batch_size = 10
         num_epochs = 5
 
-        model = GRU(input_size, hidden_size, num_layers, output_size, batch_size)
+        model = GRU(input_size, hidden_size,
+                    num_layers, output_size, batch_size)
         #model = LSTM(input_size, hidden_size, num_layers, output_size, batch_size)
-        train_fn(model, num_epochs, seq_length, batch_size, 'flipflop', disco=.9)
+        train_fn(model, num_epochs, seq_length,
+                 batch_size, 'flipflop', disco=.9)
