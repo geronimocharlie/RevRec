@@ -14,7 +14,7 @@ current_dir = os.getcwd()
 
 class RNN(nn.Module):
 
-    def __init__(self, input_size, hidden_size, num_layers, output_size, batch_size, activation='tanh'):
+    def __init__(self, input_size, hidden_size, num_layers, output_size, batch_size, activation='relu'):
         super(RNN, self).__init__()
         '''
         @params:
@@ -23,6 +23,7 @@ class RNN(nn.Module):
             num_layers [int]: number of recurrent layers / Number of hidden layers
             activation [str]: activation function
             batch_size [int]: number of samples per batch
+            activation [str]: read out activation function
 
         '''
 
@@ -41,10 +42,6 @@ class RNN(nn.Module):
         self.num_layers = num_layers
         self.output_size = output_size
 
-        self.rnn = nn.RNN(input_size, hidden_size, num_layers,
-                          nonlinearity=activation, batch_first=True)
-        # Readout layer
-        self.read_out = nn.Linear(hidden_size, output_size)
         self.name = 'RNN'
         self.folder_name = ""
 
@@ -143,25 +140,41 @@ class LSTM(nn.Module):
             out = out[:, -1, :]
         out = torch.sigmoid(self.read_out(hidden_state))
 
-        return out, final_state
+        return out, hidden_state
 
 
-def train_fn(batch_size, seq_length, num_epochs, model, task_name='integration', print_every=100, path=os.path.join(current_dir, 'models'), disco=1.):
+def train_fn(model, num_epochs, seq_length, batch_size=None, task_name='integration', print_every=100, path=os.path.join(current_dir, 'models'), disco=1.):
     """
+    General training loop for everey model architecture and every task. Saves trained weights of model in an extra directory.
+
     @params:
+        batch_size [int]: training batch size
+        seq_length [int]: sequence length of training data
+        num_epochs [int]: number of training epochs, one epoch is one time iterating through all the training set
+        print_every [int]: after how many iterations to print training details
+        path ['str']: path to save the models
+        disco [float]: discount factor for training data
 
     """
+
+    batch_size = (batch_size or model.batch_size)
+
     losses = []
     accuracies = []
 
-    if task_name == 'integration':
-        task = Integration_Task(
-            length=seq_length, batch_size=batch_size, discount=disco)
-        train_loader, test_loader = task.generate_data_loader()
+    # initializing training and test data
+    #if task_name == 'integration':
+    #    task = Integration_Task(
+    #        length=seq_length, size=TASK_SIZE, batch_size=batch_size, discount=disco)
+    #    train_loader, test_loader = task.generate_data_loader()
 
-    if task_name == 'flipflop':
-        task = Flipflop_task([.1,.1,.1])
-        train_loader, test_loader = task.generate_data_loader()
+    #if task_name == 'flipflop':
+    #    task = Flipflop_task([.1,.1,.1])
+    #    train_loader, test_loader = task.generate_data_loader()
+
+    task = TASK_CLASS(length=seq_length, size=TASK_SIZE, batch_size=batch_size)
+    train_loader, test_loader = task.generate_data_loader()
+
     # initialize optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
@@ -172,12 +185,14 @@ def train_fn(batch_size, seq_length, num_epochs, model, task_name='integration',
 
     for epoch in range(num_epochs):
         epoch += 1
+
+        # setting model to training mode
         model.train()
-        #h = model.init_hidden_state()
 
         avg_loss = 0
 
         for iter, (samples, targets) in enumerate(train_loader):
+
             #samples, targets = task.generate_sample()
             #samples = torch.from_numpy(samples).float().requires_grad_()
             #targets = torch.from_numpy(targets)
@@ -201,26 +216,33 @@ def train_fn(batch_size, seq_length, num_epochs, model, task_name='integration',
                     f"Epoch {epoch}/{num_epochs}...Iter: {iter}/{len(train_loader)}....Average Loss for Epoch: {avg_loss/iter}")
 
         losses.append(avg_loss / iter)
+        # evaluate for every epoch on test set
         accuracies.append(evaluate(model, task, test_loader))
 
     print("---------Finished Training--------")
     evaluate(model, task, test_loader)
 
-    #htrained = model.init_hidden
-    #print(htrained, "h after")
-
-    #print(h0.detach().numpy().all() == htrained.detach().numpy().all())
     save(path, model, task_name, epoch, accuracies, losses)
 
 
-def save(supfolder, model, task_name, epoch, accuracies, losses):
+def save(path, model, task_name, epoch, accuracies, losses):
+    """
+    Saving model and plotting training progress.
+
+    @params:
+        path [str]: path to the superfolder of the saved model
+        model [nn.Module Object]: trained model
+        task_name [str]: task name
+        epoch [int]: number of finished training epochs
+        accuracies [ [float] ]: accuracy for each epoch
+        losses [ [float] ]: average training loss for each epoch
+    """
 
     time_stamp = datetime.now().strftime("%d-%m-%Y_%I-%M-%S_%p")
-    model.folder_name = f"{supfolder}/{model.name}_{task_name}_{time_stamp}"
+    model.folder_name = f"{path}/{model.name}_{task_name}_s{TASK_SIZE}_{time_stamp}"
     os.makedirs(model.folder_name)
     os.chdir(model.folder_name)
-    torch.save(
-        model, f"trained_weights_{model.name}_{task_name}_epochs_{epoch}")
+    torch.save(model, f"trained_weights_{model.name}_{task_name}_epochs_{epoch}")
 
     fig, axes = plt.subplots(2, 1, sharex=True)
     axes[0].plot(accuracies)
@@ -230,11 +252,14 @@ def save(supfolder, model, task_name, epoch, accuracies, losses):
     axes[1].set_xlabel("Epochs")
     axes[1].set_ylabel("Mean Losses")
     plt.suptitle(f"Training Progres: {model.name} on {task_name}")
+    plt.savefig(f"{model.folder_name}/training_progress_{model.name}_epochs_{epoch}.png")
     plt.show()
-    plt.savefig(f"trainnig_progress_{model.name}_epochs_{epoch}.png")
 
 
-def evaluate(model, task, test_loader, last=False, avg_losses=None, avg_accuracies=None):
+def evaluate(model, task, test_loader):
+    """
+    Evaluating model accuracy on test training set.
+    """
     model.eval()
     predictions = []
     targets = []
@@ -272,14 +297,21 @@ def load_last(folder="models/"):
 
 
 if __name__ == "__main__":
-    input_size = 3
-    hidden_size = 100
-    num_layers = 1
-    output_size = 3  # the google github: number of outputs is 1
-    length = 100  # what is sequence length in the integration task?
-    batch_size = 10
-    num_epochs = 5
 
-    model = GRU(input_size, hidden_size, num_layers, output_size, batch_size)
-    #model = LSTM(input_size, hidden_size, num_layers, output_size, batch_size)
-    train_fn(batch_size, length, num_epochs, model, 'flipflop', disco=.9)
+    mode = 'charlie'
+    if mode == 'charlie':
+        model = RNN(INPUT_SIZE, HIDDEN_SIZE, NUM_LAYERS, OUTPUT_SIZE, BATCH_SIZE)
+        train_fn(model, NUM_EPOCHS, LENGHT, BATCH_SIZE, 'flipflop', path=current_dir + '/experiments')
+
+    else:
+        input_size = 3
+        output_size = 3
+        seq_length = 100
+        hidden_size = 100
+        num_layers = 1
+        batch_size = 10
+        num_epochs = 5
+
+        model = RNN(input_size, hidden_size, num_layers, output_size, batch_size)
+        #model = LSTM(input_size, hidden_size, num_layers, output_size, batch_size)
+        train_fn(model, num_epochs, seq_length, batch_size, 'flipflop', disco=.9)

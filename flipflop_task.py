@@ -1,3 +1,5 @@
+#! /usr/bin/python3
+
 import numpy as np
 import random
 from torch.utils.data import TensorDataset, DataLoader
@@ -15,9 +17,9 @@ class Flipflop_task():
             inputs = [initial_input]
             targets = [initial_input]
             current_target = initial_input
-            for _ in range(length-1):
+            for _ in range(length - 1):
                 if random.random() < self.change_probability:
-                    current_target = current_target*-1
+                    current_target = current_target * -1
                     current_input = current_target
                 else:
                     current_input = 0.
@@ -27,16 +29,18 @@ class Flipflop_task():
 
 
 
-    def __init__(self, channel_probs=[.1,.1,.1], length=100, num_samples=10000, batch_size=10):
+    def __init__(self, size=3, length=100, num_samples=10000, batch_size=10, probability=.1):
         """
         @params:
             - channel_probs: list of len num_channels, respective entry is the probability of a change in a single step
         """
-        self.channels = [self.Channel(change_prob) for change_prob in channel_probs]
+        self.size = size
+        channel_probs = [probability]*self.size
+        self.channels = [self.Channel(change_prob)
+                         for change_prob in channel_probs]
         self.length = length
         self.batch_size = batch_size
         self.num_samples=num_samples
-        self.size = len(channel_probs)
 
     def generate_sample(self, length):
         input = []
@@ -58,7 +62,7 @@ class Flipflop_task():
             targets.append(s_tar)
         inputs = np.stack(inputs)
         targets = np.stack(targets)
-        targets[targets==-1]=0
+        targets[targets == -1] = 0
         return inputs, targets
 
     def generate_data_loader(self, length=None, num_samples=None, batch_size=None):
@@ -83,7 +87,10 @@ class Flipflop_task():
 
         return train_loader, test_loader
 
+    #def plot_input_pulses():
+
+
 if __name__ == '__main__':
-    test = Flipflop_task([.1,.1,.1])
+    test = Flipflop_task([.1, .1, .1])
     samples = test.generate_samples(10000)
     print(samples)
