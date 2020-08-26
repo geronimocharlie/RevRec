@@ -1,3 +1,5 @@
+#! /usr/bin/python3
+
 import torch
 import numpy as np
 from datetime import datetime
@@ -10,6 +12,7 @@ from hyperparameters import *
 
 def generate_candidates(model_path, model_name, num_points):
 
+    # model_path and model_name can be specified in hyperparameters.py
     model = torch.load(model_path+model_name)
     model.eval()
     task = TASK_CLASS(batch_size=CANDIDATES_BATCHSIZE, size=TASK_SIZE)

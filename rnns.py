@@ -242,7 +242,8 @@ def save(path, model, task_name, epoch, accuracies, losses):
     model.folder_name = f"{path}/{model.name}_{task_name}_s{TASK_SIZE}_{time_stamp}"
     os.makedirs(model.folder_name)
     os.chdir(model.folder_name)
-    torch.save(model, f"trained_weights_{model.name}_{task_name}_epochs_{epoch}")
+    torch.save(
+        model, f"trained_weights_{model.name}_{task_name}_epochs_{epoch}")
 
     fig, axes = plt.subplots(2, 1, sharex=True)
     axes[0].plot(accuracies)
@@ -314,4 +315,5 @@ if __name__ == "__main__":
 
         model = RNN(input_size, hidden_size, num_layers, output_size, batch_size)
         #model = LSTM(input_size, hidden_size, num_layers, output_size, batch_size)
-        train_fn(model, num_epochs, seq_length, batch_size, 'flipflop', disco=.9)
+        train_fn(model, num_epochs, seq_length,
+                 batch_size, 'flipflop', disco=.9)
