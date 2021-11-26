@@ -1,4 +1,5 @@
 # RevRec
 Reverse-engineering Recurrent Neural Networks. 
 
-<embed src="ND_project.pdf" type="application/pdf">
+
+See NED_project.pdf for a project description.
